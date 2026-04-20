@@ -8,7 +8,7 @@ using TechfinChallenge.Auth.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = "Data Source=techfin;Mode=Memory;Cache=Shared";
-var jwtSecret = "techfin-secret-key-2024-muito-segura";
+var jwtSecret = "techfin-secret-key-2026-desafio-seguro";
 
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
