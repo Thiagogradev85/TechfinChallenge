@@ -1,0 +1,6 @@
+@TechfinChallenge.Auth.Api_HostAddress = http://localhost:5141
+
+GET {{TechfinChallenge.Auth.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
