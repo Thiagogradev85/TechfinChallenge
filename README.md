@@ -64,10 +64,10 @@ TechfinChallenge/
 
 **SQLite in-memory** — banco sobe junto com a API, sem necessidade de instalar nada externo. Usei uma conexão estática com `Cache=Shared` para manter os dados enquanto a aplicação está rodando.
 
-**Dapper** — micro-ORM que deixa as queries explícitas no código. Preferi ao Entity Framework porque fica mais claro o que está sendo executado no banco.
+**Dapper** - Pedido no teste
 
 **JWT compartilhado** — as três APIs usam o mesmo secret, então o token gerado na Auth é válido nas outras duas sem nenhuma chamada adicional.
 
-**RabbitMQ para mensageria** — a API de Transação não chama a API de Clientes diretamente. Ela publica um evento na fila `transacao.aprovada` e a Clientes API consome esse evento em background para atualizar o limite. Isso evita acoplamento direto entre os serviços.
+**RabbitMQ para mensageria**  - Pedido no teste
 
 **Swashbuckle 6.9.0** — o .NET 10 tem suporte nativo a OpenAPI mas não gera interface visual. O Swashbuckle resolve isso e é o mais adotado no mercado.
