@@ -5,7 +5,7 @@ using Modelo = TechfinChallenge.Transacao.Api.Models.TransacaoModel;
 
 namespace TechfinChallenge.Transacao.Api.Messaging;
 
-public class RabbitMqPublisher
+public class RabbitMqPublisher : IRabbitMqPublisher
 {
     private readonly IConnection _connection;
     private readonly IChannel _channel;

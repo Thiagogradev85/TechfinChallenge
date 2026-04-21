@@ -6,34 +6,34 @@ namespace TechfinChallenge.Clientes.Api.Repositories;
 
 public class ClienteRepository
 {
-    public Cliente? BuscarPorCpf(string cpf)
+    public virtual Cliente? BuscarPorCpf(string cpf)
     {
         return DatabaseInitializer.Connection.QueryFirstOrDefault<Cliente>(
             "SELECT * FROM Clientes WHERE Cpf = @Cpf",
             new { Cpf = cpf });
     }
 
-    public Cliente? BuscarPorId(string id)
+    public virtual Cliente? BuscarPorId(string id)
     {
         return DatabaseInitializer.Connection.QueryFirstOrDefault<Cliente>(
             "SELECT * FROM Clientes WHERE Id = @Id",
             new { Id = id });
     }
 
-    public void Criar(Cliente cliente)
+    public virtual void Criar(Cliente cliente)
     {
         DatabaseInitializer.Connection.Execute(
             "INSERT INTO Clientes (Id, Nome, Cpf, ValorLimite) VALUES (@Id, @Nome, @Cpf, @ValorLimite)",
             cliente);
     }
 
-    public IEnumerable<Cliente> ListarTodos()
+    public virtual IEnumerable<Cliente> ListarTodos()
     {
         return DatabaseInitializer.Connection.Query<Cliente>(
             "SELECT * FROM Clientes");
     }
 
-    public void AtualizarLimite(string id, decimal novoLimite)
+    public virtual void AtualizarLimite(string id, decimal novoLimite)
     {
         DatabaseInitializer.Connection.Execute(
             "UPDATE Clientes SET ValorLimite = @ValorLimite WHERE Id = @Id",

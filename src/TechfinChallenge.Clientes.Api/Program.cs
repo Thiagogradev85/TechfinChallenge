@@ -44,6 +44,7 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddSingleton<ClienteRepository>();
 builder.Services.AddSingleton<ClienteService>();
+builder.Services.AddHostedService<TechfinChallenge.Clientes.Api.Messaging.TransacaoConsumer>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

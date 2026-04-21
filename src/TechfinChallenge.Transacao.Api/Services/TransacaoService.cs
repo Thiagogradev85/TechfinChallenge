@@ -9,10 +9,10 @@ namespace TechfinChallenge.Transacao.Api.Services;
 public class TransacaoService
 {
     private readonly TransacaoRepository _repository;
-    private readonly RabbitMqPublisher _publisher;
+    private readonly IRabbitMqPublisher _publisher;
     private readonly HttpClient _httpClient;
 
-    public TransacaoService(TransacaoRepository repository, RabbitMqPublisher publisher, HttpClient httpClient)
+    public TransacaoService(TransacaoRepository repository, IRabbitMqPublisher publisher, HttpClient httpClient)
     {
         _repository = repository;
         _publisher = publisher;
