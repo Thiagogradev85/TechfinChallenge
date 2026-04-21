@@ -2,6 +2,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
+using TechfinChallenge.Clientes.Api.DTOs;
 using TechfinChallenge.Clientes.Api.Repositories;
 
 namespace TechfinChallenge.Clientes.Api.Messaging;
@@ -65,5 +66,3 @@ public class TransacaoConsumer : BackgroundService
         await base.StopAsync(cancellationToken);
     }
 }
-
-public record TransacaoMensagem(string ClienteId, decimal Valor);

@@ -54,5 +54,3 @@ public class TransacaoService
         return (transacao.Id, null);
     }
 }
-
-public record ClienteResponse(string Id, string Nome, string Cpf, decimal ValorLimite);

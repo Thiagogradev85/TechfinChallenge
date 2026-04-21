@@ -47,7 +47,7 @@ builder.Services.AddHttpClient<TransacaoService>(client =>
 });
 
 builder.Services.AddSingleton<TransacaoRepository>();
-builder.Services.AddSingleton<RabbitMqPublisher>();
+builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

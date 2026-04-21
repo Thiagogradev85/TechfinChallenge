@@ -1,62 +1,73 @@
 # TechfinChallenge
 
-Solução do case técnico para a vaga de Analista de Desenvolvimento de Software na Techfin.
+Case técnico para a vaga de Analista de Desenvolvimento de Software na Techfin.
 
-## O que foi pedido
+## Sobre o projeto
 
-Criar três APIs REST:
-- **Auth API** – cadastro de usuário e login com JWT
-- **Clientes API** – cadastro e listagem de clientes com cache
-- **Transação API** – simulação de autorização de transações
+Três APIs REST que simulam um fluxo de autorização de transações financeiras: autenticação com JWT, cadastro de clientes e processamento de transações com comunicação assíncrona via RabbitMQ.
+
+## Pré-requisitos
+
+- .NET 10
+- RabbitMQ rodando localmente na porta 5672
+
+Para subir o RabbitMQ com o serviço do Windows:
+```
+net start RabbitMQ
+```
 
 ## Como rodar
 
-> Pré-requisito: .NET 10 instalado
+Cada API roda em um terminal separado, a partir da raiz do projeto:
 
-```bash
-# Clonar o repositório
-git clone https://github.com/Thiagogradev85/TechfinChallenge.git
-cd TechfinChallenge
-
-# Rodar a API de Auth
-cd src/TechfinChallenge.Auth.Api
-dotnet run
+```
+dotnet run --project src/TechfinChallenge.Auth.Api
+```
+```
+dotnet run --project src/TechfinChallenge.Clientes.Api
+```
+```
+dotnet run --project src/TechfinChallenge.Transacao.Api
 ```
 
-Acesse `https://localhost:{porta}/swagger` para testar os endpoints.
+As portas são definidas automaticamente. O Swagger de cada API fica em `/swagger`.
 
-## Stack utilizada
+## Fluxo de uso
 
-**.NET 10 com ASP.NET Core**
-A stack principal que a Techfin usa. Optei por Controllers em vez de Minimal APIs porque é o padrão que a maioria das empresas ainda adota, e o código fica mais organizado e fácil de escalar.
+1. Criar um usuário em `POST /auth/register`
+2. Fazer login em `POST /auth/login` e copiar o token
+3. Colar o token no botão **Authorize** do Swagger
+4. Cadastrar um cliente em `POST /clientes`
+5. Autorizar uma transação em `POST /transacoes` informando o id do cliente e o valor
 
-**SQLite in-memory**
-O enunciado sugeria banco em memória para facilitar a execução em qualquer ambiente sem precisar instalar nada. O SQLite atende bem esse caso — sobe junto com a API e não precisa de configuração externa.
+Quando uma transação é aprovada, a API de Transação publica na fila do RabbitMQ e a API de Clientes consome essa mensagem para debitar o valor do limite automaticamente.
 
-**Dapper**
-Requisito do teste. É um micro-ORM leve que permite escrever as queries SQL diretamente, sem a "mágica" do Entity Framework. Prefiro assim porque fica mais claro o que está sendo executado no banco.
+## Rodando os testes
 
-**BCrypt**
-Senhas nunca são salvas em texto puro. O BCrypt transforma a senha em um hash irreversível antes de salvar, e na hora do login compara os hashes. É o padrão para isso em .NET.
+```
+dotnet test tests/TechfinChallenge.Tests
+```
 
-**JWT (JSON Web Token)**
-Após o login, o usuário recebe um token JWT com validade de 1 hora. Esse token é usado nas requisições para as APIs de Clientes e Transação, garantindo que só usuários autenticados consigam acessar os recursos.
-
-**RabbitMQ**
-Quando uma transação é aprovada, a API de Transação publica um evento no RabbitMQ e a API de Clientes consome esse evento para atualizar o limite. Isso desacopla as duas APIs — uma não chama a outra diretamente.
-
-**Swagger (Swashbuckle)**
-Interface visual para testar os endpoints sem precisar do Postman. O .NET 10 tem uma implementação nativa de OpenAPI, mas ela não gera UI — por isso optei pelo Swashbuckle, que é o mais usado no mercado.
-
-## Estrutura do projeto
+## Estrutura
 
 ```
 TechfinChallenge/
 ├── src/
-│   ├── TechfinChallenge.Auth.Api/       # API de autenticação
-│   ├── TechfinChallenge.Clientes.Api/   # API de clientes
-│   ├── TechfinChallenge.Transacao.Api/  # API de transações
-│   └── TechfinChallenge.Shared/         # Configurações compartilhadas (JWT)
+│   ├── TechfinChallenge.Auth.Api/
+│   ├── TechfinChallenge.Clientes.Api/
+│   └── TechfinChallenge.Transacao.Api/
 └── tests/
-    └── TechfinChallenge.Tests/          # Testes unitários com xUnit e Moq
+    └── TechfinChallenge.Tests/
 ```
+
+## Decisões técnicas
+
+**SQLite in-memory** — banco sobe junto com a API, sem necessidade de instalar nada externo. Usei uma conexão estática com `Cache=Shared` para manter os dados enquanto a aplicação está rodando.
+
+**Dapper** — micro-ORM que deixa as queries explícitas no código. Preferi ao Entity Framework porque fica mais claro o que está sendo executado no banco.
+
+**JWT compartilhado** — as três APIs usam o mesmo secret, então o token gerado na Auth é válido nas outras duas sem nenhuma chamada adicional.
+
+**RabbitMQ para mensageria** — a API de Transação não chama a API de Clientes diretamente. Ela publica um evento na fila `transacao.aprovada` e a Clientes API consome esse evento em background para atualizar o limite. Isso evita acoplamento direto entre os serviços.
+
+**Swashbuckle 6.9.0** — o .NET 10 tem suporte nativo a OpenAPI mas não gera interface visual. O Swashbuckle resolve isso e é o mais adotado no mercado.
