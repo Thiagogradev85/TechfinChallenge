@@ -42,4 +42,9 @@ public class ClienteService
     {
         _repository.AtualizarLimite(id, novoLimite);
     }
+
+    public Cliente? BuscarPorId(string id)
+    {
+        return _repository.BuscarPorId(id);
+    }
 }

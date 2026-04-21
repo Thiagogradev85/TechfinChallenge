@@ -31,6 +31,18 @@ public class ClientesController : ControllerBase
         return Ok(new { idCliente = id, status = "OK" });
     }
 
+    [AllowAnonymous]
+    [HttpGet("{id}")]
+    public IActionResult BuscarCliente(string id)
+    {
+        var cliente = _service.BuscarPorId(id);
+
+        if (cliente == null)
+            return NotFound(new { status = "ERRO", detalheErro = "Cliente não encontrado." });
+
+        return Ok(cliente);
+    }
+
     [HttpGet]
     public IActionResult ListarClientes()
     {
