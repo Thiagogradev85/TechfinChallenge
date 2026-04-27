@@ -1,5 +1,4 @@
 using Dapper;
-using Microsoft.Data.Sqlite;
 using TechfinChallenge.Auth.Api.Data;
 using TechfinChallenge.Auth.Api.Models;
 

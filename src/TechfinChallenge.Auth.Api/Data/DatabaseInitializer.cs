@@ -1,15 +1,15 @@
 using Dapper;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 
 namespace TechfinChallenge.Auth.Api.Data;
 
 public class DatabaseInitializer
 {
-    public static SqliteConnection Connection { get; private set; } = null!;
+    public static NpgsqlConnection Connection { get; private set; } = null!;
 
     public static void Initialize(string connectionString)
     {
-        Connection = new SqliteConnection(connectionString);
+        Connection = new NpgsqlConnection(connectionString);
         Connection.Open();
 
         Connection.Execute(@"

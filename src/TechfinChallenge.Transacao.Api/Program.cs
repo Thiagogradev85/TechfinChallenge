@@ -10,7 +10,7 @@ using TechfinChallenge.Transacao.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = "Data Source=transacoes;Mode=Memory;Cache=Shared";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 var jwtSecret = "techfin-secret-key-2026-desafio-seguro";
 var clientesApiUrl = "http://localhost:5174/";
 
