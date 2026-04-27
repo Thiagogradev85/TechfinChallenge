@@ -1,36 +1,30 @@
 using TechfinChallenge.Clientes.Api.DTOs;
 using TechfinChallenge.Clientes.Api.Models;
 using TechfinChallenge.Clientes.Api.Repositories;
+using TechfinChallenge.Shared;
 
 namespace TechfinChallenge.Clientes.Api.Services;
 
-public class ClienteService
+public class ClienteService : IClienteService
 {
-    private readonly ClienteRepository _repository;
+    private readonly IClienteRepository _repository;
 
-    public ClienteService(ClienteRepository repository)
+    public ClienteService(IClienteRepository repository)
     {
         _repository = repository;
     }
 
-    public (string? id, string? erro) CadastrarCliente(ClienteDto dto)
+    public Result<Cliente> CadastrarCliente(ClienteDto dto)
     {
-        if (dto.ValorLimite < 0)
-            return (null, "Valor de limite não pode ser negativo.");
-
         if (_repository.BuscarPorCpf(dto.Cpf) != null)
-            return (null, "CPF já cadastrado.");
+            return Result<Cliente>.Failure("CPF já cadastrado.");
 
-        var cliente = new Cliente
-        {
-            Id = Guid.NewGuid().ToString(),
-            Nome = dto.Nome,
-            Cpf = dto.Cpf,
-            ValorLimite = dto.ValorLimite
-        };
+        var result = Cliente.Criar(dto.Nome, dto.Cpf, dto.ValorLimite);
+        if (!result.IsSuccess)
+            return result;
 
-        _repository.Criar(cliente);
-        return (cliente.Id, null);
+        _repository.Criar(result.Data!);
+        return result;
     }
 
     public IEnumerable<Cliente> ListarClientes()

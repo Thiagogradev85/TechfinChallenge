@@ -4,7 +4,7 @@ using TechfinChallenge.Clientes.Api.Models;
 
 namespace TechfinChallenge.Clientes.Api.Repositories;
 
-public class ClienteRepository
+public class ClienteRepository : IClienteRepository
 {
     public virtual Cliente? BuscarPorCpf(string cpf)
     {

@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TechfinChallenge.Clientes.Api\TechfinChallenge.Clientes.Api.csproj" />
     <ProjectReference Include="..\..\src\TechfinChallenge.Transacao.Api\TechfinChallenge.Transacao.Api.csproj" />
+    <ProjectReference Include="..\..\src\TechfinChallenge.Shared\TechfinChallenge.Shared.csproj" />
+    <ProjectReference Include="..\..\src\TechfinChallenge.Messaging.Abstractions\TechfinChallenge.Messaging.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,20 +1,21 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
-using TechfinChallenge.Clientes.Api.DTOs;
-using TechfinChallenge.Clientes.Api.Repositories;
+using TechfinChallenge.Messaging.Abstractions;
 
-namespace TechfinChallenge.Clientes.Api.Messaging;
+namespace TechfinChallenge.Messaging.RabbitMQ;
 
-public class TransacaoConsumer : BackgroundService
+public class RabbitMqConsumer : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private IConnection? _connection;
     private IChannel? _channel;
     private const string FilaNome = "transacao.aprovada";
 
-    public TransacaoConsumer(IServiceProvider serviceProvider)
+    public RabbitMqConsumer(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
     }
@@ -25,7 +26,6 @@ public class TransacaoConsumer : BackgroundService
         _connection = await factory.CreateConnectionAsync(cancellationToken);
         _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
         await _channel.QueueDeclareAsync(FilaNome, durable: true, exclusive: false, autoDelete: false, cancellationToken: cancellationToken);
-
         await base.StartAsync(cancellationToken);
     }
 
@@ -35,24 +35,25 @@ public class TransacaoConsumer : BackgroundService
 
         consumer.ReceivedAsync += async (model, ea) =>
         {
-            var body = ea.Body.ToArray();
-            var mensagem = Encoding.UTF8.GetString(body);
-            var dados = JsonSerializer.Deserialize<TransacaoMensagem>(mensagem);
-
-            if (dados != null)
+            try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var repository = scope.ServiceProvider.GetRequiredService<ClienteRepository>();
+                var body = ea.Body.ToArray();
+                var mensagem = Encoding.UTF8.GetString(body);
+                var evento = JsonSerializer.Deserialize<TransacaoAprovadaEvent>(mensagem);
 
-                var cliente = repository.BuscarPorId(dados.ClienteId);
-                if (cliente != null)
+                if (evento != null)
                 {
-                    var novoLimite = cliente.ValorLimite - dados.Valor;
-                    repository.AtualizarLimite(cliente.Id, novoLimite);
+                    using var scope = _serviceProvider.CreateScope();
+                    var handler = scope.ServiceProvider.GetRequiredService<ITransacaoEventHandler>();
+                    await handler.HandleAsync(evento);
                 }
-            }
 
-            await _channel!.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                await _channel!.BasicAckAsync(ea.DeliveryTag, multiple: false);
+            }
+            catch
+            {
+                await _channel!.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false);
+            }
         };
 
         await _channel!.BasicConsumeAsync(FilaNome, autoAck: false, consumer: consumer, cancellationToken: stoppingToken);

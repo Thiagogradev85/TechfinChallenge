@@ -1,28 +1,30 @@
 using System.Net.Http.Json;
+using TechfinChallenge.Messaging.Abstractions;
 using TechfinChallenge.Transacao.Api.DTOs;
-using TechfinChallenge.Transacao.Api.Messaging;
-using Modelo = TechfinChallenge.Transacao.Api.Models.TransacaoModel;
+using TechfinChallenge.Transacao.Api.Models;
 using TechfinChallenge.Transacao.Api.Repositories;
+using TechfinChallenge.Shared;
 
 namespace TechfinChallenge.Transacao.Api.Services;
 
-public class TransacaoService
+public class TransacaoService : ITransacaoService
 {
-    private readonly TransacaoRepository _repository;
-    private readonly IRabbitMqPublisher _publisher;
+    private readonly ITransacaoRepository _repository;
+    private readonly IEventPublisher _publisher;
     private readonly HttpClient _httpClient;
 
-    public TransacaoService(TransacaoRepository repository, IRabbitMqPublisher publisher, HttpClient httpClient)
+    public TransacaoService(ITransacaoRepository repository, IEventPublisher publisher, HttpClient httpClient)
     {
         _repository = repository;
         _publisher = publisher;
         _httpClient = httpClient;
     }
 
-    public async Task<(string? id, string? erro)> AutorizarAsync(TransacaoDto dto)
+    public async Task<Result<TransacaoModel>> AutorizarAsync(TransacaoDto dto)
     {
-        if (dto.ValorSimulacao <= 0)
-            return (null, "Valor deve ser maior que zero.");
+        var transacaoResult = TransacaoModel.Criar(dto.IdCliente, dto.ValorSimulacao);
+        if (!transacaoResult.IsSuccess)
+            return transacaoResult;
 
         ClienteResponse? cliente;
         try
@@ -31,26 +33,18 @@ public class TransacaoService
         }
         catch
         {
-            return (null, "Cliente não encontrado.");
+            return Result<TransacaoModel>.Failure("Cliente não encontrado.");
         }
 
         if (cliente == null)
-            return (null, "Cliente não encontrado.");
+            return Result<TransacaoModel>.Failure("Cliente não encontrado.");
 
         if (cliente.ValorLimite < dto.ValorSimulacao)
-            return (null, "Limite insuficiente.");
+            return Result<TransacaoModel>.Failure("Limite insuficiente.");
 
-        var transacao = new Modelo
-        {
-            Id = Guid.NewGuid().ToString(),
-            ClienteId = dto.IdCliente,
-            Valor = dto.ValorSimulacao,
-            Status = "aprovado"
-        };
+        _repository.Criar(transacaoResult.Data!);
+        await _publisher.PublicarAsync(new TransacaoAprovadaEvent(transacaoResult.Data!.ClienteId, transacaoResult.Data!.Valor));
 
-        _repository.Criar(transacao);
-        _publisher.Publicar(transacao);
-
-        return (transacao.Id, null);
+        return transacaoResult;
     }
 }

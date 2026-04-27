@@ -3,8 +3,12 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using TechfinChallenge.Clientes.Api.Data;
+using TechfinChallenge.Clientes.Api.Messaging;
 using TechfinChallenge.Clientes.Api.Repositories;
 using TechfinChallenge.Clientes.Api.Services;
+using TechfinChallenge.Messaging.Abstractions;
+using TechfinChallenge.Messaging.Kafka;
+using TechfinChallenge.Messaging.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,12 +43,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-
 builder.Services.AddMemoryCache();
 
-builder.Services.AddSingleton<ClienteRepository>();
-builder.Services.AddSingleton<ClienteService>();
-builder.Services.AddHostedService<TechfinChallenge.Clientes.Api.Messaging.TransacaoConsumer>();
+builder.Services.AddSingleton<IClienteRepository, ClienteRepository>();
+builder.Services.AddSingleton<IClienteService, ClienteService>();
+builder.Services.AddSingleton<ITransacaoEventHandler, TransacaoEventHandler>();
+
+var messageBroker = builder.Configuration["MessageBroker"] ?? "RabbitMQ";
+if (messageBroker == "Kafka")
+    builder.Services.AddKafkaConsumer();
+else
+    builder.Services.AddRabbitMqConsumer();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -74,4 +83,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-

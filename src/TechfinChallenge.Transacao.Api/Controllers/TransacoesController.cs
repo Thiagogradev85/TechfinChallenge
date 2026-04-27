@@ -10,9 +10,9 @@ namespace TechfinChallenge.Transacao.Api.Controllers;
 [Authorize]
 public class TransacoesController : ControllerBase
 {
-    private readonly TransacaoService _service;
+    private readonly ITransacaoService _service;
 
-    public TransacoesController(TransacaoService service)
+    public TransacoesController(ITransacaoService service)
     {
         _service = service;
     }
@@ -20,11 +20,11 @@ public class TransacoesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Autorizar([FromBody] TransacaoDto dto)
     {
-        var (id, erro) = await _service.AutorizarAsync(dto);
+        var result = await _service.AutorizarAsync(dto);
 
-        if (erro != null)
+        if (!result.IsSuccess)
             return Ok(new { status = "NEGADO" });
 
-        return Ok(new { status = "APROVADO", idTransacao = id });
+        return Ok(new { status = "APROVADO", idTransacao = result.Data!.Id });
     }
 }

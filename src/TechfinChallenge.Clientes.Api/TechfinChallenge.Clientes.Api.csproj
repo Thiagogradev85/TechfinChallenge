@@ -14,4 +14,11 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TechfinChallenge.Shared\TechfinChallenge.Shared.csproj" />
+    <ProjectReference Include="..\TechfinChallenge.Messaging.Abstractions\TechfinChallenge.Messaging.Abstractions.csproj" />
+    <ProjectReference Include="..\TechfinChallenge.Messaging.RabbitMQ\TechfinChallenge.Messaging.RabbitMQ.csproj" />
+    <ProjectReference Include="..\TechfinChallenge.Messaging.Kafka\TechfinChallenge.Messaging.Kafka.csproj" />
+  </ItemGroup>
+
 </Project>
