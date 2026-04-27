@@ -41,13 +41,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddHttpClient<TransacaoService>(client =>
+builder.Services.AddHttpClient<ITransacaoService, TransacaoService>(client =>
 {
     client.BaseAddress = new Uri(clientesApiUrl);
 });
 
-builder.Services.AddSingleton<TransacaoRepository>();
-builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+builder.Services.AddSingleton<ITransacaoRepository, TransacaoRepository>();
+builder.Services.AddSingleton<RabbitMqPublisher>();
+builder.Services.AddSingleton<IRabbitMqPublisher>(sp => sp.GetRequiredService<RabbitMqPublisher>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqPublisher>());
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

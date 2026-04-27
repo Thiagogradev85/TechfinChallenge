@@ -42,8 +42,8 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddMemoryCache();
 
-builder.Services.AddSingleton<ClienteRepository>();
-builder.Services.AddSingleton<ClienteService>();
+builder.Services.AddSingleton<IClienteRepository, ClienteRepository>();
+builder.Services.AddSingleton<IClienteService, ClienteService>();
 builder.Services.AddHostedService<TechfinChallenge.Clientes.Api.Messaging.TransacaoConsumer>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

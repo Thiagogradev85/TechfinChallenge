@@ -4,7 +4,7 @@ using Modelo = TechfinChallenge.Transacao.Api.Models.TransacaoModel;
 
 namespace TechfinChallenge.Transacao.Api.Repositories;
 
-public class TransacaoRepository
+public class TransacaoRepository : ITransacaoRepository
 {
     public virtual void Criar(Modelo transacao)
     {

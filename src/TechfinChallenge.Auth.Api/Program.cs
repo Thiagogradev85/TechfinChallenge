@@ -13,9 +13,9 @@ var jwtSecret = "techfin-secret-key-2026-desafio-seguro";
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSingleton<UsuarioRepository>();
-builder.Services.AddSingleton(_ => new AuthService(
-    new UsuarioRepository(), jwtSecret));
+builder.Services.AddSingleton<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddSingleton<IAuthService>(sp =>
+    new AuthService(sp.GetRequiredService<IUsuarioRepository>(), jwtSecret));
 
 
 

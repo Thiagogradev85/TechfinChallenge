@@ -11,10 +11,10 @@ namespace TechfinChallenge.Clientes.Api.Controllers;
 [Authorize]
 public class ClientesController : ControllerBase
 {
-    private readonly ClienteService _service;
+    private readonly IClienteService _service;
     private readonly IMemoryCache _cache;
 
-    public ClientesController(ClienteService service, IMemoryCache cache)
+    public ClientesController(IClienteService service, IMemoryCache cache)
     {
         _service = service;
         _cache = cache;
@@ -23,12 +23,12 @@ public class ClientesController : ControllerBase
     [HttpPost]
     public IActionResult CadastrarCliente([FromBody] ClienteDto dto)
     {
-        var (id, erro) = _service.CadastrarCliente(dto);
+        var result = _service.CadastrarCliente(dto);
 
-        if (erro != null)
-            return BadRequest(new { status = "ERRO", detalheErro = erro });
+        if (!result.IsSuccess)
+            return BadRequest(new { status = "ERRO", detalheErro = result.Error });
 
-        return Ok(new { idCliente = id, status = "OK" });
+        return Ok(new { idCliente = result.Data!.Id, status = "OK" });
     }
 
     [AllowAnonymous]

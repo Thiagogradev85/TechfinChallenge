@@ -8,12 +8,12 @@ using TechfinChallenge.Auth.Api.Repositories;
 
 namespace TechfinChallenge.Auth.Api.Services;
 
-public class AuthService
+public class AuthService : IAuthService
 {
-    private readonly UsuarioRepository _repository;
+    private readonly IUsuarioRepository _repository;
     private readonly string _jwtSecret;
 
-    public AuthService(UsuarioRepository repository, string jwtSecret)
+    public AuthService(IUsuarioRepository repository, string jwtSecret)
     {
         _repository = repository;
         _jwtSecret = jwtSecret;

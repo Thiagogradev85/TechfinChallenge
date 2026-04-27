@@ -12,7 +12,7 @@ public class TransacaoServiceTests
 {
     private TransacaoService CriarService(ClienteResponse? clienteResponse)
     {
-        var repositoryMock = new Mock<TransacaoRepository>();
+        var repositoryMock = new Mock<ITransacaoRepository>();
         var publisherMock = new Mock<IRabbitMqPublisher>();
 
         var handler = new FakeHttpHandler(clienteResponse);
@@ -27,10 +27,22 @@ public class TransacaoServiceTests
         var service = CriarService(null);
         var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 0 };
 
-        var (id, erro) = await service.AutorizarAsync(dto);
+        var result = await service.AutorizarAsync(dto);
 
-        Assert.Null(id);
-        Assert.Equal("Valor deve ser maior que zero.", erro);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Valor deve ser maior que zero.", result.Error);
+    }
+
+    [Fact]
+    public async Task AutorizarAsync_DeveRetornarErro_QuandoClienteIdVazio()
+    {
+        var service = CriarService(null);
+        var dto = new TransacaoDto { IdCliente = "", ValorSimulacao = 100 };
+
+        var result = await service.AutorizarAsync(dto);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("ClienteId é obrigatório.", result.Error);
     }
 
     [Fact]
@@ -39,10 +51,10 @@ public class TransacaoServiceTests
         var service = CriarService(null);
         var dto = new TransacaoDto { IdCliente = "inexistente", ValorSimulacao = 100 };
 
-        var (id, erro) = await service.AutorizarAsync(dto);
+        var result = await service.AutorizarAsync(dto);
 
-        Assert.Null(id);
-        Assert.Equal("Cliente não encontrado.", erro);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Cliente não encontrado.", result.Error);
     }
 
     [Fact]
@@ -52,23 +64,27 @@ public class TransacaoServiceTests
         var service = CriarService(cliente);
         var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 200 };
 
-        var (id, erro) = await service.AutorizarAsync(dto);
+        var result = await service.AutorizarAsync(dto);
 
-        Assert.Null(id);
-        Assert.Equal("Limite insuficiente.", erro);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Limite insuficiente.", result.Error);
     }
 
     [Fact]
-    public async Task AutorizarAsync_DeveRetornarId_QuandoTransacaoAprovada()
+    public async Task AutorizarAsync_DeveRetornarTransacao_QuandoAprovada()
     {
         var cliente = new ClienteResponse("1", "João", "12345678901", 1000);
         var service = CriarService(cliente);
         var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 200 };
 
-        var (id, erro) = await service.AutorizarAsync(dto);
+        var result = await service.AutorizarAsync(dto);
 
-        Assert.NotNull(id);
-        Assert.Null(erro);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data.Id);
+        Assert.Equal("1", result.Data.ClienteId);
+        Assert.Equal(200, result.Data.Valor);
+        Assert.Equal("aprovado", result.Data.Status);
     }
 }
 
@@ -84,9 +100,7 @@ public class FakeHttpHandler : HttpMessageHandler
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (_response == null)
-        {
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
-        }
 
         var json = JsonSerializer.Serialize(_response);
         var response = new HttpResponseMessage(HttpStatusCode.OK)

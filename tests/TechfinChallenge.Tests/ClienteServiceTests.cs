@@ -8,12 +8,12 @@ namespace TechfinChallenge.Tests;
 
 public class ClienteServiceTests
 {
-    private readonly Mock<ClienteRepository> _repositoryMock;
+    private readonly Mock<IClienteRepository> _repositoryMock;
     private readonly ClienteService _service;
 
     public ClienteServiceTests()
     {
-        _repositoryMock = new Mock<ClienteRepository>();
+        _repositoryMock = new Mock<IClienteRepository>();
         _service = new ClienteService(_repositoryMock.Object);
     }
 
@@ -22,10 +22,32 @@ public class ClienteServiceTests
     {
         var dto = new ClienteDto { Nome = "João", Cpf = "12345678901", ValorLimite = -100 };
 
-        var (id, erro) = _service.CadastrarCliente(dto);
+        var result = _service.CadastrarCliente(dto);
 
-        Assert.Null(id);
-        Assert.Equal("Valor de limite não pode ser negativo.", erro);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Valor de limite não pode ser negativo.", result.Error);
+    }
+
+    [Fact]
+    public void CadastrarCliente_DeveRetornarErro_QuandoNomeVazio()
+    {
+        var dto = new ClienteDto { Nome = "", Cpf = "12345678901", ValorLimite = 500 };
+
+        var result = _service.CadastrarCliente(dto);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Nome é obrigatório.", result.Error);
+    }
+
+    [Fact]
+    public void CadastrarCliente_DeveRetornarErro_QuandoCpfInvalido()
+    {
+        var dto = new ClienteDto { Nome = "João", Cpf = "123", ValorLimite = 500 };
+
+        var result = _service.CadastrarCliente(dto);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("CPF deve ter 11 dígitos.", result.Error);
     }
 
     [Fact]
@@ -37,14 +59,14 @@ public class ClienteServiceTests
             .Setup(r => r.BuscarPorCpf("12345678901"))
             .Returns(new Cliente { Id = "1", Nome = "João", Cpf = "12345678901", ValorLimite = 500 });
 
-        var (id, erro) = _service.CadastrarCliente(dto);
+        var result = _service.CadastrarCliente(dto);
 
-        Assert.Null(id);
-        Assert.Equal("CPF já cadastrado.", erro);
+        Assert.False(result.IsSuccess);
+        Assert.Equal("CPF já cadastrado.", result.Error);
     }
 
     [Fact]
-    public void CadastrarCliente_DeveRetornarId_QuandoDadosValidos()
+    public void CadastrarCliente_DeveRetornarCliente_QuandoDadosValidos()
     {
         var dto = new ClienteDto { Nome = "Maria", Cpf = "98765432100", ValorLimite = 1000 };
 
@@ -52,9 +74,13 @@ public class ClienteServiceTests
             .Setup(r => r.BuscarPorCpf("98765432100"))
             .Returns((Cliente?)null);
 
-        var (id, erro) = _service.CadastrarCliente(dto);
+        var result = _service.CadastrarCliente(dto);
 
-        Assert.NotNull(id);
-        Assert.Null(erro);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data.Id);
+        Assert.Equal("Maria", result.Data.Nome);
+        Assert.Equal("98765432100", result.Data.Cpf);
+        Assert.Equal(1000, result.Data.ValorLimite);
     }
 }

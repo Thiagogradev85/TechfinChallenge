@@ -5,7 +5,7 @@ using TechfinChallenge.Auth.Api.Models;
 
 namespace TechfinChallenge.Auth.Api.Repositories;
 
-public class UsuarioRepository
+public class UsuarioRepository : IUsuarioRepository
 {
     public Usuario? BuscarPorEmail(string email)
     {
