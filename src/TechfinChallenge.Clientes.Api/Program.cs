@@ -17,6 +17,10 @@ var jwtSecret = "techfin-secret-key-2026-desafio-seguro";
 
 builder.Services.AddControllers();
 
+builder.Services.AddCors(options =>
+    options.AddDefaultPolicy(p =>
+        p.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -78,6 +82,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

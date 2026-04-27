@@ -19,4 +19,10 @@ public class TransacaoRepository : ITransacaoRepository
             "SELECT * FROM Transacoes WHERE Id = @Id",
             new { Id = id });
     }
+
+    public virtual IEnumerable<Modelo> ListarTodos()
+    {
+        return DatabaseInitializer.Connection.Query<Modelo>(
+            "SELECT * FROM Transacoes");
+    }
 }

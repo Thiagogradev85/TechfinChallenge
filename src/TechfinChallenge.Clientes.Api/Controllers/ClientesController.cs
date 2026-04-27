@@ -13,6 +13,7 @@ public class ClientesController : ControllerBase
 {
     private readonly IClienteService _service;
     private readonly IMemoryCache _cache;
+    private const string CacheKey = "lista_clientes";
 
     public ClientesController(IClienteService service, IMemoryCache cache)
     {
@@ -24,10 +25,10 @@ public class ClientesController : ControllerBase
     public IActionResult CadastrarCliente([FromBody] ClienteDto dto)
     {
         var result = _service.CadastrarCliente(dto);
-
         if (!result.IsSuccess)
             return BadRequest(new { status = "ERRO", detalheErro = result.Error });
 
+        _cache.Remove(CacheKey);
         return Ok(new { idCliente = result.Data!.Id, status = "OK" });
     }
 
@@ -36,7 +37,6 @@ public class ClientesController : ControllerBase
     public IActionResult BuscarCliente(string id)
     {
         var cliente = _service.BuscarPorId(id);
-
         if (cliente == null)
             return NotFound(new { status = "ERRO", detalheErro = "Cliente não encontrado." });
 
@@ -46,14 +46,34 @@ public class ClientesController : ControllerBase
     [HttpGet]
     public IActionResult ListarClientes()
     {
-        var cacheKey = "lista_clientes";
-
-        if (!_cache.TryGetValue(cacheKey, out var clientes))
+        if (!_cache.TryGetValue(CacheKey, out var clientes))
         {
             clientes = _service.ListarClientes();
-            _cache.Set(cacheKey, clientes, TimeSpan.FromMinutes(10));
+            _cache.Set(CacheKey, clientes, TimeSpan.FromMinutes(10));
         }
 
         return Ok(clientes);
+    }
+
+    [HttpPut("{id}")]
+    public IActionResult AtualizarCliente(string id, [FromBody] ClienteDto dto)
+    {
+        var result = _service.AtualizarCliente(id, dto);
+        if (!result.IsSuccess)
+            return BadRequest(new { status = "ERRO", detalheErro = result.Error });
+
+        _cache.Remove(CacheKey);
+        return Ok(new { idCliente = result.Data!.Id, status = "OK" });
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult DeletarCliente(string id)
+    {
+        var result = _service.DeletarCliente(id);
+        if (!result.IsSuccess)
+            return BadRequest(new { status = "ERRO", detalheErro = result.Error });
+
+        _cache.Remove(CacheKey);
+        return Ok(new { status = "OK" });
     }
 }

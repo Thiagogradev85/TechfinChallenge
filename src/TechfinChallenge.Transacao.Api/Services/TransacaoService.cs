@@ -47,4 +47,9 @@ public class TransacaoService : ITransacaoService
 
         return transacaoResult;
     }
+
+    public Task<IEnumerable<TransacaoModel>> ListarAsync()
+    {
+        return Task.FromResult(_repository.ListarTodos());
+    }
 }

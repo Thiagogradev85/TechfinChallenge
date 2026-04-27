@@ -39,4 +39,18 @@ public class ClienteRepository : IClienteRepository
             "UPDATE Clientes SET ValorLimite = @ValorLimite WHERE Id = @Id",
             new { ValorLimite = novoLimite, Id = id });
     }
+
+    public virtual void Atualizar(string id, Cliente cliente)
+    {
+        DatabaseInitializer.Connection.Execute(
+            "UPDATE Clientes SET Nome = @Nome, Cpf = @Cpf, ValorLimite = @ValorLimite WHERE Id = @Id",
+            new { cliente.Nome, cliente.Cpf, cliente.ValorLimite, Id = id });
+    }
+
+    public virtual void Deletar(string id)
+    {
+        DatabaseInitializer.Connection.Execute(
+            "DELETE FROM Clientes WHERE Id = @Id",
+            new { Id = id });
+    }
 }
