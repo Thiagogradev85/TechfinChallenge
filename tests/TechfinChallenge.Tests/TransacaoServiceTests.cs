@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text.Json;
 using Moq;
+using TechfinChallenge.Messaging.Abstractions;
 using TechfinChallenge.Transacao.Api.DTOs;
-using TechfinChallenge.Transacao.Api.Messaging;
 using TechfinChallenge.Transacao.Api.Repositories;
 using TechfinChallenge.Transacao.Api.Services;
 
@@ -13,7 +13,7 @@ public class TransacaoServiceTests
     private TransacaoService CriarService(ClienteResponse? clienteResponse)
     {
         var repositoryMock = new Mock<ITransacaoRepository>();
-        var publisherMock = new Mock<IRabbitMqPublisher>();
+        var publisherMock = new Mock<IEventPublisher>();
 
         var handler = new FakeHttpHandler(clienteResponse);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };

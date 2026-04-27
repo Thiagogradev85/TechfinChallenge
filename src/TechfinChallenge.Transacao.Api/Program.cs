@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using TechfinChallenge.Messaging.Kafka;
+using TechfinChallenge.Messaging.RabbitMQ;
 using TechfinChallenge.Transacao.Api.Data;
-using TechfinChallenge.Transacao.Api.Messaging;
 using TechfinChallenge.Transacao.Api.Repositories;
 using TechfinChallenge.Transacao.Api.Services;
 
@@ -47,9 +48,12 @@ builder.Services.AddHttpClient<ITransacaoService, TransacaoService>(client =>
 });
 
 builder.Services.AddSingleton<ITransacaoRepository, TransacaoRepository>();
-builder.Services.AddSingleton<RabbitMqPublisher>();
-builder.Services.AddSingleton<IRabbitMqPublisher>(sp => sp.GetRequiredService<RabbitMqPublisher>());
-builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqPublisher>());
+
+var messageBroker = builder.Configuration["MessageBroker"] ?? "RabbitMQ";
+if (messageBroker == "Kafka")
+    builder.Services.AddKafkaPublisher();
+else
+    builder.Services.AddRabbitMqPublisher();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
