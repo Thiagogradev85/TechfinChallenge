@@ -107,7 +107,7 @@
 <div class="hero">
   <h1>Apache Kafka — Guia de Estudos</h1>
   <p>Baseado no projeto <strong>transacao-api-dotnet-react</strong> com exemplos reais do código</p>
-  <span class="badge">✓ Módulos 1, 2 e 3 concluídos</span>
+  <span class="badge">✓ Módulos 1, 2, 3, 4 e 5 concluídos</span>
 </div>
 
 <div class="container">
@@ -123,6 +123,8 @@
       <li><a href="#modulo1">Módulo 1 — Fluxo completo na prática</a></li>
       <li><a href="#modulo2">Módulo 2 — Partições e ordenação</a></li>
       <li><a href="#modulo3">Módulo 3 — Consumer Groups e escalabilidade</a></li>
+      <li><a href="#modulo4">Módulo 4 — Retry e Dead Letter Queue</a></li>
+      <li><a href="#modulo5">Módulo 5 — Múltiplos Topics</a></li>
       <li><a href="#proximos">Próximos módulos</a></li>
       <li><a href="#referencia">Referência rápida de comandos</a></li>
     </ol>
@@ -548,21 +550,263 @@ offset 7: débito Pedro  → Partition 2  ✓ salvo no Kafka
   </table>
   <p>João e Pedro caíram na mesma partition — coincidência do hash com apenas 3 partitions. Com 10+ partitions a distribuição seria mais uniforme.</p>
 
+  <!-- MÓDULO 4 -->
+  <div class="module-header" id="modulo4">
+    <div class="module-number">Módulo 4 — Concluído ✓</div>
+    <div class="module-title">Retry e Dead Letter Queue — o que fazer quando uma mensagem falha</div>
+  </div>
+
+  <h3 class="sub">O problema — mensagem travada para sempre</h3>
+  <p>No <code>KafkaConsumer</code> atual, se o handler lançar uma exceção o offset não é commitado. O consumer tenta reprocessar a mesma mensagem infinitamente, <strong>bloqueando todas as mensagens seguintes</strong> da mesma partition.</p>
+
+  <pre><code><span class="comment">// KafkaConsumer.cs — comportamento atual</span>
+catch (Exception ex)
+{
+    _logger.LogError(ex, "Erro ao processar — continuando...");
+    <span class="comment">// offset NÃO commitado → mesma mensagem na próxima iteração
+    // Partition 2 fica bloqueada enquanto offset 7 falhar</span>
+}
+
+<span class="comment">// Resultado:</span>
+<span class="comment">// offset 7 → falha → tenta de novo → falha → tenta de novo → ∞</span>
+<span class="comment">// offset 8, 9, 10... nunca são processados</span></code></pre>
+
+  <h3 class="sub">O que é Dead Letter Queue (DLQ)</h3>
+  <p>Após N tentativas falhas, a mensagem é movida para um topic separado em vez de bloquear. O time de operações investiga as mensagens no DLQ sem impactar o fluxo principal.</p>
+
+  <div class="flow">
+    <div class="flow-box">transacao.aprovada</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">tenta 1x → falha</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">tenta 2x → falha</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">tenta 3x → falha</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="background:#3b0764;border-color:#7c3aed;color:#c4b5fd">transacao.falha (DLQ)</div>
+  </div>
+
+  <h3 class="sub">Implementação no projeto</h3>
+  <pre><code><span class="comment">// KafkaConsumer.cs — com retry e DLQ</span>
+var tentativas = 0;
+const int maxTentativas = 3;
+
+while (!stoppingToken.IsCancellationRequested)
+{
+    var result = consumer.Consume(stoppingToken);
+    tentativas = 0;
+    var processado = false;
+
+    while (tentativas < maxTentativas && !processado)
+    {
+        try
+        {
+            tentativas++;
+            handler.HandleAsync(evento).GetAwaiter().GetResult();
+            consumer.Commit(result);      <span class="comment">// sucesso → commita</span>
+            processado = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(<span class="str">"Tentativa {T}/{Max} falhou"</span>, tentativas, maxTentativas);
+
+            if (tentativas >= maxTentativas)
+            {
+                <span class="comment">// esgotou tentativas → manda pro DLQ</span>
+                dlqProducer.ProduceAsync(<span class="str">"transacao.falha"</span>, result.Message);
+                consumer.Commit(result);  <span class="comment">// commita para não reprocessar</span>
+                _logger.LogError(<span class="str">"Mensagem enviada para DLQ após {Max} tentativas"</span>, maxTentativas);
+            }
+        }
+    }
+}</code></pre>
+
+  <h3 class="sub">At-Least-Once vs Exactly-Once</h3>
+  <table>
+    <tr><th>Garantia</th><th>O que significa</th><th>Risco</th></tr>
+    <tr><td><strong>At-Least-Once</strong></td><td>Mensagem processada uma ou mais vezes</td><td>Processamento duplicado se cair após processar mas antes de commitar</td></tr>
+    <tr><td><strong>At-Most-Once</strong></td><td>Mensagem processada zero ou uma vez</td><td>Perda de mensagem se cair antes de processar</td></tr>
+    <tr><td><strong>Exactly-Once</strong></td><td>Exatamente uma vez, garantido</td><td>Complexo, requer transações Kafka + idempotência</td></tr>
+  </table>
+
+  <div class="tip">
+    <div class="tip-title">Padrão do mercado</div>
+    <p>At-Least-Once + <strong>idempotência no handler</strong> é o padrão mais usado. O handler verifica se já processou aquela mensagem antes de agir — se sim, ignora. Mais simples que Exactly-Once e igualmente seguro.</p>
+  </div>
+
+  <h3 class="sub">Cenários de falha comuns em fintech</h3>
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Banco fora do ar</div>
+      <p>Handler não consegue salvar o novo limite. Com retry: tenta 3x aguardando o banco voltar. Com DLQ: registra para reprocessar manualmente quando o banco voltar.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Cliente não existe</div>
+      <p>Evento chegou mas o ClienteId não está no banco. Não adianta retry — é erro de dados. Vai direto pro DLQ para investigação.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Timeout de rede</div>
+      <p>Chamada HTTP para outra API demorou demais. Retry com backoff exponencial (espera 1s, 2s, 4s) resolve na maioria dos casos.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Mensagem corrompida</div>
+      <p>JSON inválido, campo faltando, tipo errado. Deserialização falha. Vai pro DLQ imediatamente — retry não vai resolver.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">Como ver no Kafka UI</h3>
+  <p>Após implementar o DLQ, crie o topic <code>transacao.falha</code> com 1 partition no Kafka UI. Quando uma mensagem falhar 3x ela aparecerá lá na aba <strong>Messages</strong> para investigação.</p>
+
+  <!-- MÓDULO 5 -->
+  <div class="module-header" id="modulo5">
+    <div class="module-number">Módulo 5 — Concluído ✓</div>
+    <div class="module-title">Múltiplos Topics — quando separar e como um serviço é produtor e consumidor ao mesmo tempo</div>
+  </div>
+
+  <h3 class="sub">O problema de um topic genérico</h3>
+  <p>No projeto temos um único topic <code>transacao.aprovada</code> para todas as transações. Funciona, mas mistura eventos com propósitos diferentes. À medida que o sistema cresce, aparecem perguntas:</p>
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Diferentes consumidores</div>
+      <p>O módulo de antifraude quer só débitos. O de cashback quer só créditos. Com um topic único, ambos consomem tudo e descartam metade.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Diferentes retenções</div>
+      <p>Eventos de auditoria precisam ficar 1 ano. Eventos de heartbeat precisam ficar 1 hora. Um topic só não permite isso.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Diferentes volumes</div>
+      <p>Crédito tem 10x mais volume que débito. Com topics separados você configura mais partições para crédito sem afetar débito.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">Convenção de nomes de topics</h3>
+  <p>O padrão do mercado é <code>dominio.entidade.acao</code> no formato snake_case ou kebab-case:</p>
+  <pre><code><span class="comment">// Padrão: domínio.entidade.ação</span>
+transacao.aprovada          <span class="comment">// atual — genérico</span>
+transacao.debito.aprovado   <span class="comment">// mais específico por tipo</span>
+transacao.credito.aprovado
+
+cliente.limite.atualizado   <span class="comment">// evento downstream — após o handler atualizar o limite</span>
+cliente.criado
+cliente.bloqueado
+
+pagamento.pix.processado
+pagamento.ted.falhou</code></pre>
+
+  <h3 class="sub">Um serviço pode ser produtor E consumidor</h3>
+  <p>Esse é o padrão mais importante do Módulo 5. No projeto atual, a <strong>Clientes API</strong> só consome. No mundo real ela também produziria eventos após processar — criando uma <strong>cadeia de eventos</strong>:</p>
+
+  <div class="flow" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="flow-box" style="background:#1e3a5f;border-color:#1e40af">Transacao API</div>
+      <div class="flow-arrow">→ publica em →</div>
+      <div class="flow-box" style="background:#3b0764;border-color:#7c3aed;color:#c4b5fd">transacao.aprovada</div>
+      <div class="flow-arrow">→ consome →</div>
+      <div class="flow-box" style="background:#14532d;border-color:#16a34a;color:#86efac">Clientes API</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-left: 200px;">
+      <div class="flow-arrow">↓ depois de atualizar o limite, publica em</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-left: 200px;">
+      <div class="flow-box" style="background:#3b0764;border-color:#7c3aed;color:#c4b5fd">cliente.limite.atualizado</div>
+      <div class="flow-arrow">→ consome →</div>
+      <div class="flow-box">Serviço de Auditoria</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-title">Clientes API como produtor e consumidor</div>
+    <p>A Clientes API <strong>consome</strong> <code>transacao.aprovada</code> e <strong>produz</strong> <code>cliente.limite.atualizado</code>. Ela é os dois ao mesmo tempo — é assim que sistemas event-driven se compõem sem acoplamento direto.</p>
+  </div>
+
+  <h3 class="sub">Subscrevendo em múltiplos topics</h3>
+  <p>O Confluent.Kafka permite passar uma lista para <code>Subscribe</code>. O consumer recebe mensagens de todos os topics da lista e você identifica de qual veio por <code>result.Topic</code>:</p>
+
+  <pre><code><span class="comment">// Subscribe aceita uma lista — consumer recebe de todos os topics</span>
+consumer.Subscribe(new[] { <span class="str">"transacao.debito"</span>, <span class="str">"transacao.credito"</span> });
+
+<span class="comment">// No loop, identifique de qual topic veio a mensagem</span>
+var result = consumer.Consume(stoppingToken);
+
+if (result.Topic == <span class="str">"transacao.debito"</span>)
+{
+    <span class="comment">// lógica específica de débito</span>
+    handler.HandleDebitoAsync(evento).GetAwaiter().GetResult();
+}
+else if (result.Topic == <span class="str">"transacao.credito"</span>)
+{
+    <span class="comment">// lógica específica de crédito</span>
+    handler.HandleCreditoAsync(evento).GetAwaiter().GetResult();
+}</code></pre>
+
+  <h3 class="sub">Publicar em topics diferentes no Producer</h3>
+  <p>O producer já escolhe o topic em cada chamada — basta mudar a string:</p>
+
+  <pre><code><span class="comment">// KafkaPublisher — roteamento por tipo de transação</span>
+public async Task PublicarAsync(TransacaoAprovadaEvent evento)
+{
+    var topicName = evento.Tipo == <span class="str">"debito"</span>
+        ? <span class="str">"transacao.debito"</span>
+        : <span class="str">"transacao.credito"</span>;
+
+    await _producer.ProduceAsync(topicName, new Message&lt;string, string&gt;
+    {
+        Key = evento.ClienteId,
+        Value = JsonSerializer.Serialize(evento)
+    });
+}
+
+<span class="comment">// Ou, após processar, publicar um evento downstream</span>
+await _dlqOrNotificationProducer.ProduceAsync(<span class="str">"cliente.limite.atualizado"</span>, new Message&lt;string, string&gt;
+{
+    Key = clienteId,
+    Value = JsonSerializer.Serialize(new { clienteId, novoLimite, timestamp = DateTime.UtcNow })
+});</code></pre>
+
+  <h3 class="sub">Quando criar um novo topic vs reutilizar</h3>
+  <table>
+    <tr><th>Crie um novo topic se...</th><th>Reutilize o topic se...</th></tr>
+    <tr><td>Consumidores diferentes com necessidades diferentes</td><td>Todos os consumidores precisam do mesmo dado</td></tr>
+    <tr><td>Retenção ou configuração diferente</td><td>A lógica de diferenciação é simples (um campo tipo)</td></tr>
+    <tr><td>O evento tem semântica claramente diferente</td><td>O volume é baixo e não justifica a complexidade</td></tr>
+    <tr><td>Times diferentes consomem de forma independente</td><td>Você está no início e quer simplicidade</td></tr>
+  </table>
+
+  <div class="warn">
+    <div class="warn-title">Armadilha comum — topic explosion</div>
+    <p>Criar um topic para cada variação pequena gera centenas de topics difíceis de gerenciar. No Kafka a regra de ouro é: <strong>um topic por tipo de evento de negócio</strong>, não por variação técnica.</p>
+  </div>
+
+  <h3 class="sub">No projeto: o que temos e o que poderíamos ter</h3>
+  <pre><code><span class="comment">// Atual — um topic, tipo no payload</span>
+transacao.aprovada  → { clienteId, valor, tipo: "debito" | "credito" }
+
+<span class="comment">// Alternativa — topics separados por tipo</span>
+transacao.debito    → { clienteId, valor }
+transacao.credito   → { clienteId, valor }
+
+<span class="comment">// Event chain — Clientes API também produz</span>
+transacao.aprovada        ← Transacao API produz
+  └→ Clientes API consome → atualiza limite
+       └→ cliente.limite.atualizado ← Clientes API produz
+            └→ Auditoria consome → registra log</code></pre>
+
   <!-- PRÓXIMOS MÓDULOS -->
-  <h2 class="section" id="proximos">5. Próximos módulos</h2>
+  <h2 class="section" id="proximos">6. Próximos módulos</h2>
 
   <div class="grid">
     <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
       <div class="card-title" style="color:#22c55e">✓ Módulo 3 — Consumer Groups</div>
       <p>Concluído — grupos independentes, rebalance automático, consumer lag, at-least-once com Kafka vs RabbitMQ.</p>
     </div>
-    <div class="card">
-      <div class="card-title">Módulo 4 — Retry e DLQ</div>
-      <p>O que acontece quando o handler falha. At-least-once delivery. Dead Letter Queue — padrão usado em produção para mensagens que falham repetidamente.</p>
+    <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
+      <div class="card-title" style="color:#22c55e">✓ Módulo 4 — Retry e DLQ</div>
+      <p>Concluído — retry com contador, Dead Letter Queue, At-Least-Once vs Exactly-Once, cenários de falha em fintech.</p>
     </div>
-    <div class="card">
-      <div class="card-title">Módulo 5 — Múltiplos Topics</div>
-      <p>Quando criar um novo topic. Criar <code>cliente.limite.atualizado</code> publicado pela Clientes API após debitar/creditar.</p>
+    <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
+      <div class="card-title" style="color:#22c55e">✓ Módulo 5 — Múltiplos Topics</div>
+      <p>Concluído — quando separar topics, convenção de nomes, Subscribe em lista, event chain (produtor e consumidor no mesmo serviço), topic explosion.</p>
     </div>
     <div class="card">
       <div class="card-title">Módulo 6 — Serialização</div>
@@ -623,7 +867,7 @@ var config = new ConsumerConfig
 
 <footer>
   Projeto: <strong>transacao-api-dotnet-react</strong> · .NET 10 + React 18 + Kafka + RabbitMQ + PostgreSQL<br>
-  Guia gerado durante as aulas práticas — continue pelo Módulo 3
+  Guia gerado durante as aulas práticas — Módulos 1 a 5 concluídos
 </footer>
 
 </body>

@@ -11,7 +11,7 @@ public class KafkaConsumer : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<KafkaConsumer> _logger;
-    private const string TopicName = "transacao.aprovada";
+    private static readonly string[] Topics = ["transacao.debito", "transacao.credito"];
     private const string DlqTopicName = "transacao.falha";
     private const string GroupId = "clientes-api";
     private const int MaxRetries = 3;
@@ -36,11 +36,11 @@ public class KafkaConsumer : BackgroundService
             new ProducerConfig { BootstrapServers = "localhost:29092" }).Build();
 
         using var consumer = new ConsumerBuilder<string, string>(consumerConfig).Build();
-        consumer.Subscribe(TopicName);
+        consumer.Subscribe(Topics);
 
         _logger.LogInformation(
-            "[KAFKA CONSUMER] Inscrito no topic '{Topic}' | Group: {GroupId}",
-            TopicName, GroupId);
+            "[KAFKA CONSUMER] Inscrito nos topics [{Topics}] | Group: {GroupId}",
+            string.Join(", ", Topics), GroupId);
 
         await Task.Run(() =>
         {
@@ -51,8 +51,8 @@ public class KafkaConsumer : BackgroundService
                     var result = consumer.Consume(stoppingToken);
 
                     _logger.LogInformation(
-                        "[KAFKA CONSUMER] Mensagem recebida | Partition: {Partition} | Offset: {Offset} | Key: {Key}",
-                        result.Partition.Value, result.Offset.Value, result.Message.Key);
+                        "[KAFKA CONSUMER] Mensagem recebida | Topic: {Topic} | Partition: {Partition} | Offset: {Offset} | Key: {Key}",
+                        result.Topic, result.Partition.Value, result.Offset.Value, result.Message.Key);
 
                     var evento = JsonSerializer.Deserialize<TransacaoAprovadaEvent>(result.Message.Value);
 

@@ -9,7 +9,7 @@ namespace TechfinChallenge.Messaging.Kafka;
 public class AuditoriaConsumer : BackgroundService
 {
     private readonly ILogger<AuditoriaConsumer> _logger;
-    private const string TopicName = "transacao.aprovada";
+    private static readonly string[] Topics = ["transacao.debito", "transacao.credito"];
     private const string GroupId = "auditoria-api";
 
     public AuditoriaConsumer(ILogger<AuditoriaConsumer> logger)
@@ -28,11 +28,11 @@ public class AuditoriaConsumer : BackgroundService
         };
 
         using var consumer = new ConsumerBuilder<string, string>(config).Build();
-        consumer.Subscribe(TopicName);
+        consumer.Subscribe(Topics);
 
         _logger.LogInformation(
-            "[AUDITORIA] Inscrito no topic '{Topic}' | Group: {GroupId}",
-            TopicName, GroupId);
+            "[AUDITORIA] Inscrito nos topics [{Topics}] | Group: {GroupId}",
+            string.Join(", ", Topics), GroupId);
 
         await Task.Run(() =>
         {
@@ -46,8 +46,8 @@ public class AuditoriaConsumer : BackgroundService
                     if (evento != null)
                     {
                         _logger.LogInformation(
-                            "[AUDITORIA] *** REGISTRO DE AUDITORIA *** | ClienteId: {ClienteId} | Tipo: {Tipo} | Valor: {Valor} | Partition: {Partition} | Offset: {Offset}",
-                            evento.ClienteId, evento.Tipo, evento.Valor,
+                            "[AUDITORIA] *** REGISTRO DE AUDITORIA *** | Topic: {Topic} | ClienteId: {ClienteId} | Tipo: {Tipo} | Valor: {Valor} | Partition: {Partition} | Offset: {Offset}",
+                            result.Topic, evento.ClienteId, evento.Tipo, evento.Valor,
                             result.Partition.Value, result.Offset.Value);
                     }
 
