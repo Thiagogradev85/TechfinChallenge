@@ -15,9 +15,13 @@ public class TransacaoEventHandler : ITransacaoEventHandler
     public Task HandleAsync(TransacaoAprovadaEvent evento)
     {
         var cliente = _clienteService.BuscarPorId(evento.ClienteId);
-        if (cliente != null)
-            _clienteService.AtualizarLimite(cliente.Id, cliente.ValorLimite - evento.Valor);
+        if (cliente == null) return Task.CompletedTask;
 
+        var novoLimite = evento.Tipo == "credito"
+            ? cliente.ValorLimite + evento.Valor
+            : cliente.ValorLimite - evento.Valor;
+
+        _clienteService.AtualizarLimite(cliente.Id, novoLimite);
         return Task.CompletedTask;
     }
 }

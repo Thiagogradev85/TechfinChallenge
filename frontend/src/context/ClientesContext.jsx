@@ -55,8 +55,16 @@ export function ClientesProvider({ children }) {
     );
   };
 
+  const creditarLimite = (clienteId, valor) => {
+    setClientes((prev) =>
+      prev.map((c) =>
+        c.id === clienteId ? { ...c, valorLimite: c.valorLimite + valor } : c
+      )
+    );
+  };
+
   return (
-    <ClientesContext.Provider value={{ clientes, loading, reload, criar, atualizar, deletar, debitarLimite }}>
+    <ClientesContext.Provider value={{ clientes, loading, reload, criar, atualizar, deletar, debitarLimite, creditarLimite }}>
       {children}
     </ClientesContext.Provider>
   );

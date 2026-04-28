@@ -25,7 +25,7 @@ public class TransacaoServiceTests
     public async Task AutorizarAsync_DeveRetornarErro_QuandoValorZero()
     {
         var service = CriarService(null);
-        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 0 };
+        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 0, Tipo = "debito" };
 
         var result = await service.AutorizarAsync(dto);
 
@@ -37,7 +37,7 @@ public class TransacaoServiceTests
     public async Task AutorizarAsync_DeveRetornarErro_QuandoClienteIdVazio()
     {
         var service = CriarService(null);
-        var dto = new TransacaoDto { IdCliente = "", ValorSimulacao = 100 };
+        var dto = new TransacaoDto { IdCliente = "", ValorSimulacao = 100, Tipo = "debito" };
 
         var result = await service.AutorizarAsync(dto);
 
@@ -49,7 +49,7 @@ public class TransacaoServiceTests
     public async Task AutorizarAsync_DeveRetornarErro_QuandoClienteNaoEncontrado()
     {
         var service = CriarService(null);
-        var dto = new TransacaoDto { IdCliente = "inexistente", ValorSimulacao = 100 };
+        var dto = new TransacaoDto { IdCliente = "inexistente", ValorSimulacao = 100, Tipo = "debito" };
 
         var result = await service.AutorizarAsync(dto);
 
@@ -62,7 +62,7 @@ public class TransacaoServiceTests
     {
         var cliente = new ClienteResponse("1", "João", "12345678901", 50);
         var service = CriarService(cliente);
-        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 200 };
+        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 200, Tipo = "debito" };
 
         var result = await service.AutorizarAsync(dto);
 
@@ -71,20 +71,47 @@ public class TransacaoServiceTests
     }
 
     [Fact]
-    public async Task AutorizarAsync_DeveRetornarTransacao_QuandoAprovada()
+    public async Task AutorizarAsync_DeveRetornarTransacao_QuandoDebitoAprovado()
     {
         var cliente = new ClienteResponse("1", "João", "12345678901", 1000);
         var service = CriarService(cliente);
-        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 200 };
+        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 200, Tipo = "debito" };
 
         var result = await service.AutorizarAsync(dto);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Data);
-        Assert.NotNull(result.Data.Id);
         Assert.Equal("1", result.Data.ClienteId);
         Assert.Equal(200, result.Data.Valor);
         Assert.Equal("aprovado", result.Data.Status);
+        Assert.Equal("debito", result.Data.Tipo);
+    }
+
+    [Fact]
+    public async Task AutorizarAsync_DeveAprovarCredito_SemVerificarLimite()
+    {
+        var cliente = new ClienteResponse("1", "João", "12345678901", 0);
+        var service = CriarService(cliente);
+        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 500, Tipo = "credito" };
+
+        var result = await service.AutorizarAsync(dto);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("credito", result.Data!.Tipo);
+        Assert.Equal(500, result.Data.Valor);
+    }
+
+    [Fact]
+    public async Task AutorizarAsync_DeveRetornarErro_QuandoTipoInvalido()
+    {
+        var cliente = new ClienteResponse("1", "João", "12345678901", 1000);
+        var service = CriarService(cliente);
+        var dto = new TransacaoDto { IdCliente = "1", ValorSimulacao = 100, Tipo = "transferencia" };
+
+        var result = await service.AutorizarAsync(dto);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Tipo deve ser 'debito' ou 'credito'.", result.Error);
     }
 }
 

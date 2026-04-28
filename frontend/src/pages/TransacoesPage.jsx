@@ -10,7 +10,7 @@ import { formatCurrency } from '../utils/formatters';
 
 export default function TransacoesPage() {
   const { transacoes, loading, simular } = useTransacoes();
-  const { clientes, debitarLimite } = useClientesContext();
+  const { clientes, debitarLimite, creditarLimite } = useClientesContext();
   const [simulating, setSimulating] = useState(false);
   const [lastResult, setLastResult] = useState(null);
 
@@ -22,7 +22,8 @@ export default function TransacoesPage() {
       setLastResult(data);
       if (data.status === 'APROVADO') {
         toast.success(`Aprovada! ID: ${data.idTransacao?.slice(0, 8)}…`);
-        debitarLimite(dto.idCliente, dto.valorSimulacao);
+        if (dto.tipo === 'credito') creditarLimite(dto.idCliente, dto.valorSimulacao);
+        else debitarLimite(dto.idCliente, dto.valorSimulacao);
       } else {
         toast.error('Transação negada — limite insuficiente.');
       }
@@ -54,6 +55,15 @@ export default function TransacoesPage() {
       label: 'Valor',
       render: (r) => (
         <span className="font-semibold text-gray-800">{formatCurrency(r.valor)}</span>
+      ),
+    },
+    {
+      key: 'tipo',
+      label: 'Tipo',
+      render: (r) => (
+        <Badge variant={r.tipo === 'credito' ? 'success' : 'danger'}>
+          {r.tipo === 'credito' ? '↑ Crédito' : '↓ Débito'}
+        </Badge>
       ),
     },
     {

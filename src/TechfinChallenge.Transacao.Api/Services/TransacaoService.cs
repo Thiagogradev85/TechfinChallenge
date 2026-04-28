@@ -22,7 +22,7 @@ public class TransacaoService : ITransacaoService
 
     public async Task<Result<TransacaoModel>> AutorizarAsync(TransacaoDto dto)
     {
-        var transacaoResult = TransacaoModel.Criar(dto.IdCliente, dto.ValorSimulacao);
+        var transacaoResult = TransacaoModel.Criar(dto.IdCliente, dto.ValorSimulacao, dto.Tipo);
         if (!transacaoResult.IsSuccess)
             return transacaoResult;
 
@@ -39,11 +39,11 @@ public class TransacaoService : ITransacaoService
         if (cliente == null)
             return Result<TransacaoModel>.Failure("Cliente não encontrado.");
 
-        if (cliente.ValorLimite < dto.ValorSimulacao)
+        if (dto.Tipo == "debito" && cliente.ValorLimite < dto.ValorSimulacao)
             return Result<TransacaoModel>.Failure("Limite insuficiente.");
 
         _repository.Criar(transacaoResult.Data!);
-        await _publisher.PublicarAsync(new TransacaoAprovadaEvent(transacaoResult.Data!.ClienteId, transacaoResult.Data!.Valor));
+        await _publisher.PublicarAsync(new TransacaoAprovadaEvent(transacaoResult.Data!.ClienteId, transacaoResult.Data!.Valor, dto.Tipo));
 
         return transacaoResult;
     }

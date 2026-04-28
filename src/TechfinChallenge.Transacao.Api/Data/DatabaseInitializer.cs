@@ -18,7 +18,11 @@ public class DatabaseInitializer
                 Id TEXT PRIMARY KEY,
                 ClienteId TEXT NOT NULL,
                 Valor NUMERIC(18,2) NOT NULL,
-                Status TEXT NOT NULL
+                Status TEXT NOT NULL,
+                Tipo TEXT NOT NULL DEFAULT 'debito'
             )");
+
+        connection.Execute(@"
+            ALTER TABLE Transacoes ADD COLUMN IF NOT EXISTS Tipo TEXT NOT NULL DEFAULT 'debito'");
     }
 }

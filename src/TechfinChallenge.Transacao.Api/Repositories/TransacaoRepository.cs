@@ -13,7 +13,7 @@ public class TransacaoRepository : ITransacaoRepository
     {
         using var db = Conn();
         db.Execute(
-            "INSERT INTO Transacoes (Id, ClienteId, Valor, Status) VALUES (@Id, @ClienteId, @Valor, @Status)",
+            "INSERT INTO Transacoes (Id, ClienteId, Valor, Status, Tipo) VALUES (@Id, @ClienteId, @Valor, @Status, @Tipo)",
             transacao);
     }
 
