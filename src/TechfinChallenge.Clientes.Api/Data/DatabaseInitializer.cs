@@ -5,14 +5,15 @@ namespace TechfinChallenge.Clientes.Api.Data;
 
 public class DatabaseInitializer
 {
-    public static NpgsqlConnection Connection { get; private set; } = null!;
+    public static string ConnectionString { get; private set; } = null!;
 
     public static void Initialize(string connectionString)
     {
-        Connection = new NpgsqlConnection(connectionString);
-        Connection.Open();
+        ConnectionString = connectionString;
 
-        Connection.Execute(@"
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Open();
+        connection.Execute(@"
             CREATE TABLE IF NOT EXISTS Clientes (
                 Id TEXT PRIMARY KEY,
                 Nome TEXT NOT NULL,

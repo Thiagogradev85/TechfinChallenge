@@ -23,6 +23,7 @@ export default function TransacoesPage() {
       if (data.status === 'APROVADO') {
         toast.success(`Aprovada! ID: ${data.idTransacao?.slice(0, 8)}…`);
         setTimeout(recarregarClientes, 800);
+        setTimeout(recarregarClientes, 2500);
       } else {
         toast.error('Transação negada — limite insuficiente.');
       }

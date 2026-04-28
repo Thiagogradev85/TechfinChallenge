@@ -1,4 +1,5 @@
 using Dapper;
+using Npgsql;
 using TechfinChallenge.Clientes.Api.Data;
 using TechfinChallenge.Clientes.Api.Models;
 
@@ -6,51 +7,55 @@ namespace TechfinChallenge.Clientes.Api.Repositories;
 
 public class ClienteRepository : IClienteRepository
 {
+    private NpgsqlConnection Conn() => new NpgsqlConnection(DatabaseInitializer.ConnectionString);
+
     public virtual Cliente? BuscarPorCpf(string cpf)
     {
-        return DatabaseInitializer.Connection.QueryFirstOrDefault<Cliente>(
-            "SELECT * FROM Clientes WHERE Cpf = @Cpf",
-            new { Cpf = cpf });
+        using var db = Conn();
+        return db.QueryFirstOrDefault<Cliente>(
+            "SELECT * FROM Clientes WHERE Cpf = @Cpf", new { Cpf = cpf });
     }
 
     public virtual Cliente? BuscarPorId(string id)
     {
-        return DatabaseInitializer.Connection.QueryFirstOrDefault<Cliente>(
-            "SELECT * FROM Clientes WHERE Id = @Id",
-            new { Id = id });
+        using var db = Conn();
+        return db.QueryFirstOrDefault<Cliente>(
+            "SELECT * FROM Clientes WHERE Id = @Id", new { Id = id });
     }
 
     public virtual void Criar(Cliente cliente)
     {
-        DatabaseInitializer.Connection.Execute(
+        using var db = Conn();
+        db.Execute(
             "INSERT INTO Clientes (Id, Nome, Cpf, ValorLimite) VALUES (@Id, @Nome, @Cpf, @ValorLimite)",
             cliente);
     }
 
     public virtual IEnumerable<Cliente> ListarTodos()
     {
-        return DatabaseInitializer.Connection.Query<Cliente>(
-            "SELECT * FROM Clientes");
+        using var db = Conn();
+        return db.Query<Cliente>("SELECT * FROM Clientes").ToList();
     }
 
     public virtual void AtualizarLimite(string id, decimal novoLimite)
     {
-        DatabaseInitializer.Connection.Execute(
+        using var db = Conn();
+        db.Execute(
             "UPDATE Clientes SET ValorLimite = @ValorLimite WHERE Id = @Id",
             new { ValorLimite = novoLimite, Id = id });
     }
 
     public virtual void Atualizar(string id, Cliente cliente)
     {
-        DatabaseInitializer.Connection.Execute(
+        using var db = Conn();
+        db.Execute(
             "UPDATE Clientes SET Nome = @Nome, Cpf = @Cpf, ValorLimite = @ValorLimite WHERE Id = @Id",
             new { cliente.Nome, cliente.Cpf, cliente.ValorLimite, Id = id });
     }
 
     public virtual void Deletar(string id)
     {
-        DatabaseInitializer.Connection.Execute(
-            "DELETE FROM Clientes WHERE Id = @Id",
-            new { Id = id });
+        using var db = Conn();
+        db.Execute("DELETE FROM Clientes WHERE Id = @Id", new { Id = id });
     }
 }
