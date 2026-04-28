@@ -9,4 +9,6 @@ public interface IClienteRepository
     void Criar(Cliente cliente);
     IEnumerable<Cliente> ListarTodos();
     void AtualizarLimite(string id, decimal novoLimite);
+    void Atualizar(string id, Cliente cliente);
+    void Deletar(string id);
 }

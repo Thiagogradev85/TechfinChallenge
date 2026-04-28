@@ -7,4 +7,5 @@ namespace TechfinChallenge.Transacao.Api.Services;
 public interface ITransacaoService
 {
     Task<Result<TransacaoModel>> AutorizarAsync(TransacaoDto dto);
+    Task<IEnumerable<TransacaoModel>> ListarAsync();
 }

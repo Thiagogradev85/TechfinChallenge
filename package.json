@@ -1,0 +1,16 @@
+{
+  "name": "techfinchallenge",
+  "version": "1.0.0",
+  "description": "Case técnico — TechfinChallenge",
+  "private": true,
+  "scripts": {
+    "dev": "docker-compose up -d && dotnet build && concurrently --kill-others-on-fail --prefix-colors \"yellow.bold,cyan.bold,green.bold,magenta.bold\" --names \"AUTH   ,CLIENTES,TRANSAC ,FRONTEND\" \"dotnet run --no-build --project src/TechfinChallenge.Auth.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Clientes.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Transacao.Api\" \"npm run dev --prefix frontend\"",
+    "dev:back": "docker-compose up -d && dotnet build && concurrently --kill-others-on-fail --prefix-colors \"yellow.bold,cyan.bold,green.bold\" --names \"AUTH   ,CLIENTES,TRANSAC\" \"dotnet run --no-build --project src/TechfinChallenge.Auth.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Clientes.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Transacao.Api\"",
+    "dev:front": "npm run dev --prefix frontend",
+    "build:front": "npm run build --prefix frontend",
+    "test:back": "dotnet test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

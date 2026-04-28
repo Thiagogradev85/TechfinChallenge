@@ -12,10 +12,14 @@ using TechfinChallenge.Messaging.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = "Data Source=clientes;Mode=Memory;Cache=Shared";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 var jwtSecret = "techfin-secret-key-2026-desafio-seguro";
 
 builder.Services.AddControllers();
+
+builder.Services.AddCors(options =>
+    options.AddDefaultPolicy(p =>
+        p.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -78,6 +82,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

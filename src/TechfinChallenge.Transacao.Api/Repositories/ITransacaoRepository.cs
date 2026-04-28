@@ -6,4 +6,5 @@ public interface ITransacaoRepository
 {
     void Criar(TransacaoModel transacao);
     TransacaoModel? BuscarPorId(string id);
+    IEnumerable<TransacaoModel> ListarTodos();
 }

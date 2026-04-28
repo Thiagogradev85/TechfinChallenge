@@ -21,10 +21,16 @@ public class TransacoesController : ControllerBase
     public async Task<IActionResult> Autorizar([FromBody] TransacaoDto dto)
     {
         var result = await _service.AutorizarAsync(dto);
-
         if (!result.IsSuccess)
-            return Ok(new { status = "NEGADO" });
+            return Ok(new { status = "NEGADO", motivo = result.Error });
 
         return Ok(new { status = "APROVADO", idTransacao = result.Data!.Id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Listar()
+    {
+        var transacoes = await _service.ListarAsync();
+        return Ok(transacoes);
     }
 }

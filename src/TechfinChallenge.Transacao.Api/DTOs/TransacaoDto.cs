@@ -4,4 +4,5 @@ public class TransacaoDto
 {
     public string IdCliente { get; set; } = string.Empty;
     public decimal ValorSimulacao { get; set; }
+    public string Tipo { get; set; } = "debito";
 }
