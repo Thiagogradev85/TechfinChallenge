@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kafka — Guia de Estudos</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.7; }
+
+    .hero { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 60px 40px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .hero h1 { font-size: 2.4rem; color: #f8fafc; margin-bottom: 8px; }
+    .hero p { color: #94a3b8; font-size: 1.1rem; }
+    .badge { display: inline-block; background: #22c55e22; color: #22c55e; border: 1px solid #22c55e44; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; margin-top: 12px; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+
+    .toc { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; margin-bottom: 48px; }
+    .toc h2 { color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin: 6px 0; }
+    .toc a { color: #60a5fa; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    h2.section { font-size: 1.6rem; color: #f8fafc; margin: 56px 0 8px; padding-bottom: 12px; border-bottom: 2px solid #1e40af; }
+    h3.sub { font-size: 1.15rem; color: #93c5fd; margin: 32px 0 12px; }
+
+    p { color: #cbd5e1; margin-bottom: 12px; }
+
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; margin: 16px 0; }
+    .card-title { font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
+
+    .container-box { background: #1e293b; border-radius: 12px; padding: 20px; border-left: 4px solid; }
+    .container-box.kafka { border-color: #f59e0b; }
+    .container-box.zookeeper { border-color: #8b5cf6; }
+    .container-box.kafkaui { border-color: #06b6d4; }
+    .container-box.rabbitmq { border-color: #f97316; }
+    .container-box.postgres { border-color: #22c55e; }
+    .container-box.pgadmin { border-color: #3b82f6; }
+    .container-box h4 { font-size: 1rem; margin-bottom: 6px; }
+    .container-box .port { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; font-family: monospace; }
+    .container-box p { font-size: 0.9rem; color: #94a3b8; margin: 0; }
+
+    pre { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 20px; overflow-x: auto; margin: 12px 0; }
+    code { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.88rem; color: #e2e8f0; }
+    .comment { color: #6a9955; }
+    .cmd { color: #79c0ff; }
+    .flag { color: #d2a8ff; }
+    .str { color: #a5d6ff; }
+    .num { color: #f2cc60; }
+
+    .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+    .flow-box { background: #1e3a5f; border: 1px solid #1e40af; border-radius: 8px; padding: 10px 16px; font-size: 0.85rem; color: #93c5fd; font-weight: 600; }
+    .flow-arrow { color: #475569; font-size: 1.2rem; }
+
+    .concept { display: flex; gap: 16px; align-items: flex-start; background: #1e293b; border-radius: 10px; padding: 20px; margin: 12px 0; border: 1px solid #334155; }
+    .concept-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .concept-title { font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+    .concept-desc { color: #94a3b8; font-size: 0.95rem; }
+
+    .partition-viz { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 16px 0; font-family: monospace; font-size: 0.85rem; }
+    .partition-viz .topic-name { color: #f59e0b; margin-bottom: 12px; font-size: 1rem; }
+    .partition-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .partition-label { color: #6b7280; width: 100px; flex-shrink: 0; }
+    .msg-box { background: #1e3a5f; border: 1px solid #1e40af; border-radius: 4px; padding: 4px 10px; color: #93c5fd; font-size: 0.78rem; }
+    .msg-box.highlight { background: #14532d; border-color: #16a34a; color: #86efac; }
+
+    .offset-viz { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 16px 0; font-family: monospace; }
+    .offset-row { display: flex; gap: 0; margin: 8px 0; }
+    .offset-cell { border: 1px solid #374151; padding: 8px 14px; text-align: center; }
+    .offset-cell.header { background: #1f2937; color: #9ca3af; font-size: 0.75rem; }
+    .offset-cell.current { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+    .offset-cell.committed { background: #14532d; border-color: #16a34a; color: #86efac; }
+    .offset-cell.pending { background: #1c1917; color: #78716c; }
+
+    .tip { background: #1e3a5f22; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 16px 0; }
+    .tip-title { color: #60a5fa; font-weight: 700; margin-bottom: 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+    .tip p { color: #93c5fd; margin: 0; font-size: 0.9rem; }
+
+    .warn { background: #78350f22; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 16px 0; }
+    .warn-title { color: #fbbf24; font-weight: 700; margin-bottom: 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+    .warn p { color: #fcd34d; margin: 0; font-size: 0.9rem; }
+
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th { background: #1e293b; color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px; text-align: left; }
+    td { padding: 12px 16px; border-bottom: 1px solid #1e293b; color: #cbd5e1; font-size: 0.9rem; }
+    tr:hover td { background: #1e293b44; }
+    td code { background: #0d1117; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; color: #93c5fd; }
+
+    .module-header { background: linear-gradient(135deg, #1e3a5f, #172554); border: 1px solid #1e40af; border-radius: 12px; padding: 20px 24px; margin: 48px 0 24px; }
+    .module-number { font-size: 0.8rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
+    .module-title { font-size: 1.3rem; color: #f8fafc; }
+
+    .log-line { font-family: monospace; font-size: 0.82rem; padding: 4px 0; }
+    .log-clientes { color: #22c55e; }
+    .log-transac { color: #f59e0b; }
+    .log-auth { color: #a78bfa; }
+    .log-msg { color: #cbd5e1; }
+
+    footer { text-align: center; padding: 40px; color: #334155; font-size: 0.85rem; border-top: 1px solid #1e293b; margin-top: 60px; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Apache Kafka — Guia de Estudos</h1>
+  <p>Baseado no projeto <strong>transacao-api-dotnet-react</strong> com exemplos reais do código</p>
+  <span class="badge">✓ Módulos 1, 2 e 3 concluídos</span>
+</div>
+
+<div class="container">
+
+  <!-- ÍNDICE -->
+  <div class="toc">
+    <h2>Índice</h2>
+    <ol>
+      <li><a href="#docker">Os containers Docker do projeto</a></li>
+      <li><a href="#comandos-docker">Comandos Docker essenciais</a></li>
+      <li><a href="#docker-desktop">Docker Desktop — interface visual</a></li>
+      <li><a href="#conceitos">Conceitos fundamentais do Kafka</a></li>
+      <li><a href="#modulo1">Módulo 1 — Fluxo completo na prática</a></li>
+      <li><a href="#modulo2">Módulo 2 — Partições e ordenação</a></li>
+      <li><a href="#modulo3">Módulo 3 — Consumer Groups e escalabilidade</a></li>
+      <li><a href="#proximos">Próximos módulos</a></li>
+      <li><a href="#referencia">Referência rápida de comandos</a></li>
+    </ol>
+  </div>
+
+  <!-- CONTAINERS DOCKER -->
+  <h2 class="section" id="docker">1. Os containers Docker do projeto</h2>
+  <p>Quando você roda <code>docker-compose up -d</code> na raiz do projeto, 6 containers sobem. Cada um tem uma responsabilidade:</p>
+
+  <div class="grid">
+    <div class="container-box zookeeper">
+      <h4>🦒 techfin-zookeeper</h4>
+      <div class="port">Porta interna: 2181</div>
+      <p>Gerenciador de coordenação do Kafka. Guarda metadados: quais brokers existem, quais topics, quais partitions pertencem a qual broker. <strong>O Kafka precisa dele para funcionar.</strong> Versões novas do Kafka (KRaft) eliminam o Zookeeper, mas ainda é comum no mercado.</p>
+    </div>
+    <div class="container-box kafka">
+      <h4>📨 techfin-kafka</h4>
+      <div class="port">Porta externa: 29092 | Porta interna: 9092</div>
+      <p>O broker Kafka propriamente dito. Recebe mensagens dos Producers, armazena nos topics/partitions e entrega aos Consumers. É o coração da mensageria. Sua API usa <code>localhost:29092</code> para se conectar.</p>
+    </div>
+    <div class="container-box kafkaui">
+      <h4>🖥️ techfin-kafka-ui</h4>
+      <div class="port">Porta: 8080 → http://localhost:8080</div>
+      <p>Interface visual para o Kafka. Permite ver topics, mensagens, offsets, consumer groups e criar/deletar topics sem usar linha de comando. Equivalente ao pgAdmin, mas para o Kafka.</p>
+    </div>
+    <div class="container-box rabbitmq">
+      <h4>🐰 techfin-rabbitmq</h4>
+      <div class="port">AMQP: 5672 | UI: 15672 → http://localhost:15672</div>
+      <p>Broker de mensageria alternativo. O projeto suporta RabbitMQ e Kafka — você troca pelo frontend em Configurações. RabbitMQ é mais simples, Kafka é mais escalável.</p>
+    </div>
+    <div class="container-box postgres">
+      <h4>🐘 techfin-postgres</h4>
+      <div class="port">Porta: 5432</div>
+      <p>Banco de dados PostgreSQL. Armazena usuários, clientes e transações. Os dados persistem porque usa um volume Docker (<code>postgres_data</code>) — sobrevive a reinicializações.</p>
+    </div>
+    <div class="container-box pgadmin">
+      <h4>🔧 techfin-pgadmin</h4>
+      <div class="port">Porta: 5050 → http://localhost:5050</div>
+      <p>Interface visual para o PostgreSQL. Login: <code>admin@techfin.com</code> / <code>admin123</code>. Ao conectar, use <code>postgres</code> como host (nome do container), não <code>localhost</code>.</p>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-title">Por que duas portas no Kafka?</div>
+    <p><strong>9092</strong> = comunicação interna entre containers Docker. <strong>29092</strong> = comunicação externa (sua API .NET no host). Sua API usa <code>localhost:29092</code> porque roda fora do Docker.</p>
+  </div>
+
+  <!-- COMANDOS DOCKER -->
+  <h2 class="section" id="comandos-docker">2. Comandos Docker essenciais</h2>
+
+  <h3 class="sub">Gerenciar os containers</h3>
+  <pre><code><span class="comment"># Subir todos os containers em background</span>
+<span class="cmd">docker-compose up -d</span>
+
+<span class="comment"># Subir apenas containers específicos</span>
+<span class="cmd">docker-compose up -d</span> postgres pgadmin
+
+<span class="comment"># Ver status de todos os containers</span>
+<span class="cmd">docker ps</span>
+
+<span class="comment"># Ver logs de um container específico</span>
+<span class="cmd">docker logs</span> techfin-kafka
+
+<span class="comment"># Parar tudo (dados ficam salvos)</span>
+<span class="cmd">docker-compose down</span>
+
+<span class="comment"># Parar E apagar tudo (reset total — perde dados do banco)</span>
+<span class="cmd">docker-compose down -v</span></code></pre>
+
+  <h3 class="sub">Comandos Kafka dentro do container</h3>
+  <pre><code><span class="comment"># Listar todos os topics</span>
+<span class="cmd">docker exec -it</span> techfin-kafka kafka-topics <span class="flag">--bootstrap-server</span> localhost:9092 <span class="flag">--list</span>
+
+<span class="comment"># Criar topic com 3 partitions</span>
+<span class="cmd">docker exec -it</span> techfin-kafka kafka-topics <span class="flag">--bootstrap-server</span> localhost:9092 <span class="flag">--create</span> <span class="flag">--topic</span> <span class="str">transacao.aprovada</span> <span class="flag">--partitions</span> <span class="num">3</span> <span class="flag">--replication-factor</span> <span class="num">1</span>
+
+<span class="comment"># Ver detalhes de um topic (partitions, replicas)</span>
+<span class="cmd">docker exec -it</span> techfin-kafka kafka-topics <span class="flag">--bootstrap-server</span> localhost:9092 <span class="flag">--describe</span> <span class="flag">--topic</span> <span class="str">transacao.aprovada</span>
+
+<span class="comment"># Deletar topic</span>
+<span class="cmd">docker exec -it</span> techfin-kafka kafka-topics <span class="flag">--bootstrap-server</span> localhost:9092 <span class="flag">--delete</span> <span class="flag">--topic</span> <span class="str">transacao.aprovada</span>
+
+<span class="comment"># Ler mensagens de um topic em tempo real (consumer de linha de comando)</span>
+<span class="cmd">docker exec -it</span> techfin-kafka kafka-console-consumer <span class="flag">--bootstrap-server</span> localhost:9092 <span class="flag">--topic</span> <span class="str">transacao.aprovada</span> <span class="flag">--from-beginning</span></code></pre>
+
+  <div class="warn">
+    <div class="warn-title">Atenção — imagem Confluent</div>
+    <p>Nossa imagem é <code>confluentinc/cp-kafka:7.5.0</code>. Os comandos NÃO têm <code>.sh</code> no final. Use <code>kafka-topics</code>, não <code>kafka-topics.sh</code>.</p>
+  </div>
+
+  <!-- DOCKER DESKTOP -->
+  <h2 class="section" id="docker-desktop">3. Docker Desktop — interface visual no Windows</h2>
+  <p>O Docker Desktop já está instalado na sua máquina. Ele tem uma interface gráfica onde você pode gerenciar containers sem usar o terminal:</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Containers</div>
+      <p>Lista todos os containers rodando. Você pode iniciar, parar, reiniciar e ver logs de cada um com um clique. Equivale ao <code>docker ps</code> e <code>docker logs</code>.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Images</div>
+      <p>Lista as imagens baixadas (confluentinc/cp-kafka, postgres, etc.). Você pode deletar imagens que não usa mais para liberar espaço.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Volumes</div>
+      <p>Lista os volumes persistentes. O <code>postgres_data</code> fica aqui — é ele que salva os dados do banco entre reinicializações.</p>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-title">Dica</div>
+    <p>No Docker Desktop você pode clicar em qualquer container → aba <strong>Logs</strong> para ver o output em tempo real. É equivalente ao <code>docker logs -f techfin-kafka</code>.</p>
+  </div>
+
+  <!-- CONCEITOS -->
+  <h2 class="section" id="conceitos">4. Conceitos fundamentais do Kafka</h2>
+
+  <div class="concept">
+    <div class="concept-icon">📦</div>
+    <div>
+      <div class="concept-title">Topic</div>
+      <div class="concept-desc">Canal nomeado onde mensagens são publicadas. É como uma tabela no banco — tem um nome e armazena dados. No projeto: <code>transacao.aprovada</code>. Producers publicam nele, Consumers leem dele.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">🛣️</div>
+    <div>
+      <div class="concept-title">Partition</div>
+      <div class="concept-desc">Divisão física de um topic. Pense nas faixas de uma rodovia — cada mensagem vai para uma faixa específica e fica lá na ordem em que chegou. Mais partitions = mais paralelismo. No Módulo 2 criamos 3 partitions.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">📍</div>
+    <div>
+      <div class="concept-title">Offset</div>
+      <div class="concept-desc">Posição de uma mensagem dentro de uma partition. Começa em 0, nunca diminui, nunca reutiliza. O Consumer guarda qual offset já processou — se cair e voltar, continua de onde parou. No log você viu: <code>Offset: 2</code>.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">📤</div>
+    <div>
+      <div class="concept-title">Producer</div>
+      <div class="concept-desc">Quem publica mensagens no topic. No projeto: <code>KafkaPublisher</code> na Transacao API. Ele serializa o evento para JSON e envia com uma <strong>key</strong> (o ClienteId) que determina a partition.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">📥</div>
+    <div>
+      <div class="concept-title">Consumer</div>
+      <div class="concept-desc">Quem lê mensagens do topic. No projeto: <code>KafkaConsumer</code> na Clientes API, rodando como <code>BackgroundService</code>. Ele fica em loop infinito consumindo mensagens e commita o offset após processar.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">👥</div>
+    <div>
+      <div class="concept-title">Consumer Group</div>
+      <div class="concept-desc">Grupo de consumers que trabalham juntos. Cada mensagem vai para <strong>apenas um</strong> consumer do grupo. No projeto: group id = <code>clientes-api</code>. Se você subir 2 instâncias da Clientes API, elas dividem as partitions entre si.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">🔑</div>
+    <div>
+      <div class="concept-title">Message Key</div>
+      <div class="concept-desc">Campo opcional da mensagem que determina a partition via hash. Mesma key = mesma partition = ordem garantida. No projeto usamos o <code>ClienteId</code> como key, garantindo que todas as transações de um cliente sejam processadas em ordem.</div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">✅</div>
+    <div>
+      <div class="concept-title">Commit de Offset</div>
+      <div class="concept-desc">Ato de informar ao Kafka que uma mensagem foi processada com sucesso. No projeto usamos <strong>commit manual</strong> (<code>EnableAutoCommit = false</code>) — só commitamos após o handler executar. Se a API cair antes do commit, a mensagem será reprocessada.</div>
+    </div>
+  </div>
+
+  <!-- MÓDULO 1 -->
+  <div class="module-header" id="modulo1">
+    <div class="module-number">Módulo 1 — Concluído ✓</div>
+    <div class="module-title">Fluxo completo na prática — do frontend ao banco</div>
+  </div>
+
+  <h3 class="sub">O fluxo que você debugou</h3>
+
+  <div class="flow">
+    <div class="flow-box">Frontend React</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">POST /transacoes</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">TransacaoService</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">KafkaPublisher</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">Kafka Broker</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">KafkaConsumer</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">EventHandler</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">PostgreSQL</div>
+  </div>
+
+  <h3 class="sub">Os logs que apareceram</h3>
+  <pre><code><span class="log-transac">[TRANSAC]</span> <span class="log-msg">[KAFKA PRODUCER] Publicando no topic 'transacao.aprovada' | Key: 38490a9b... | Tipo: debito | Valor: 1000</span>
+<span class="log-transac">[TRANSAC]</span> <span class="log-msg">[KAFKA PRODUCER] Mensagem entregue | Partition: 0 | Offset: 2</span>
+
+<span class="log-clientes">[CLIENTES]</span> <span class="log-msg">[KAFKA CONSUMER] Mensagem recebida | Partition: 0 | Offset: 2 | Key: 38490a9b...</span>
+<span class="log-clientes">[CLIENTES]</span> <span class="log-msg">[KAFKA CONSUMER] Processando evento | ClienteId: 38490a9b... | Tipo: debito | Valor: 1000</span>
+<span class="log-clientes">[CLIENTES]</span> <span class="log-msg">[EVENT HANDLER]  Recebido evento | ClienteId: 38490a9b... | Tipo: debito | Valor: 1000</span>
+<span class="log-clientes">[CLIENTES]</span> <span class="log-msg">[EVENT HANDLER]  Limite atualizado | Cliente: João Silva Teste | 9000.00 → 8000.00</span>
+<span class="log-clientes">[CLIENTES]</span> <span class="log-msg">[KAFKA CONSUMER] Offset commitado | Partition: 0 | Offset: 2</span></code></pre>
+
+  <h3 class="sub">O que cada arquivo do projeto faz</h3>
+  <table>
+    <tr><th>Arquivo</th><th>API</th><th>Responsabilidade</th></tr>
+    <tr><td><code>KafkaPublisher.cs</code></td><td>Transacao</td><td>Serializa o evento e envia ao topic Kafka com ClienteId como key</td></tr>
+    <tr><td><code>KafkaConsumer.cs</code></td><td>Clientes</td><td>BackgroundService que fica em loop lendo o topic, desserializa e chama o handler</td></tr>
+    <tr><td><code>TransacaoEventHandler.cs</code></td><td>Clientes</td><td>Lógica de negócio: busca o cliente, calcula novo limite, salva no banco</td></tr>
+    <tr><td><code>TransacaoAprovadaEvent.cs</code></td><td>Shared</td><td>Record com ClienteId, Valor e Tipo — o contrato da mensagem entre as APIs</td></tr>
+    <tr><td><code>ServiceCollectionExtensions.cs</code></td><td>Kafka</td><td>Registra Producer e Consumer no DI do .NET</td></tr>
+  </table>
+
+  <h3 class="sub">Por que EnableAutoCommit = false?</h3>
+  <pre><code><span class="comment">// KafkaConsumer.cs</span>
+var config = new ConsumerConfig
+{
+    EnableAutoCommit = <span class="cmd">false</span>,  <span class="comment">// commit manual — mais seguro</span>
+};
+
+<span class="comment">// Só commita DEPOIS de processar com sucesso</span>
+handler.HandleAsync(evento).GetAwaiter().GetResult();
+consumer.Commit(result);  <span class="comment">// ← aqui</span></code></pre>
+
+  <div class="tip">
+    <div class="tip-title">Por que isso importa</div>
+    <p>Com AutoCommit, o Kafka marcaria a mensagem como lida antes de você terminar de processar. Se a API cair no meio, a mensagem seria perdida. Com commit manual: processou → commitou. Falhou → não commitou → reprocessa.</p>
+  </div>
+
+  <!-- MÓDULO 2 -->
+  <div class="module-header" id="modulo2">
+    <div class="module-number">Módulo 2 — Em andamento</div>
+    <div class="module-title">Partições — ordenação e paralelismo</div>
+  </div>
+
+  <h3 class="sub">Como partitions funcionam</h3>
+
+  <div class="partition-viz">
+    <div class="topic-name">Topic: transacao.aprovada (3 partitions)</div>
+    <div class="partition-row">
+      <span class="partition-label">Partition 0</span>
+      <div class="msg-box highlight">débito R$1000 João</div>
+      <div class="msg-box highlight">crédito R$200 João</div>
+      <div class="msg-box highlight">débito R$500 João</div>
+    </div>
+    <div class="partition-row">
+      <span class="partition-label">Partition 1</span>
+      <div class="msg-box">débito R$300 Maria</div>
+      <div class="msg-box">crédito R$100 Maria</div>
+    </div>
+    <div class="partition-row">
+      <span class="partition-label">Partition 2</span>
+      <div class="msg-box">débito R$700 Pedro</div>
+    </div>
+    <br>
+    <span style="color:#6b7280;font-size:0.8rem">Verde = João → sempre Partition 0 (mesma key = mesmo hash = mesma partition)</span>
+  </div>
+
+  <h3 class="sub">A fórmula do roteamento</h3>
+  <pre><code><span class="comment">// O Kafka usa internamente:</span>
+partition = hash(key) % total_partitions
+
+<span class="comment">// Exemplo com ClienteId do projeto:</span>
+hash(<span class="str">"38490a9b-3b99-48b3-8a33-4519fdf344cd"</span>) % 3 = <span class="num">0</span>
+<span class="comment">// Toda transação desse cliente sempre vai para Partition 0</span>
+
+<span class="comment">// No KafkaPublisher.cs:</span>
+Key = evento.ClienteId  <span class="comment">// ← essa linha garante a ordenação por cliente</span></code></pre>
+
+  <h3 class="sub">Por que ordem importa em fintech</h3>
+  <div class="card">
+    <div class="card-title">Cenário sem key (round-robin)</div>
+    <pre style="margin-top:8px"><code>T=1: débito  R$9000  → Partition 2  (offset 0)
+T=2: crédito R$100   → Partition 0  (offset 0)
+T=3: débito  R$200   → Partition 1  (offset 0)
+
+<span class="comment">// Consumer processa Partition 0 primeiro:</span>
+<span class="comment">// crédito R$100 processado ANTES do débito R$9000</span>
+<span class="comment">// Limite: 1000 + 100 = 1100 → depois -9000 → NEGATIVO INVÁLIDO</span></code></pre>
+  </div>
+  <div class="card">
+    <div class="card-title">Cenário com key = ClienteId</div>
+    <pre style="margin-top:8px"><code>T=1: débito  R$9000  → Partition 0  (offset 0)
+T=2: crédito R$100   → Partition 0  (offset 1)  ← mesma key, mesma partition
+T=3: débito  R$200   → Partition 0  (offset 2)
+
+<span class="comment">// Consumer processa na ordem garantida:</span>
+<span class="comment">// -9000 → +100 → -200 = ordem correta sempre</span></code></pre>
+  </div>
+
+  <h3 class="sub">Visualizando offsets</h3>
+  <div class="offset-viz">
+    <div style="color:#6b7280;font-size:0.8rem;margin-bottom:12px">Partition 0 — estado após o Módulo 1</div>
+    <div class="offset-row">
+      <div class="offset-cell header">Offset</div>
+      <div class="offset-cell header">0</div>
+      <div class="offset-cell header">1</div>
+      <div class="offset-cell header">2</div>
+      <div class="offset-cell header">3</div>
+      <div class="offset-cell header">4</div>
+    </div>
+    <div class="offset-row">
+      <div class="offset-cell header">Status</div>
+      <div class="offset-cell committed">✓ commitado</div>
+      <div class="offset-cell committed">✓ commitado</div>
+      <div class="offset-cell current">← você estava aqui</div>
+      <div class="offset-cell pending">pendente</div>
+      <div class="offset-cell pending">pendente</div>
+    </div>
+  </div>
+
+  <!-- MÓDULO 3 -->
+  <div class="module-header" id="modulo3">
+    <div class="module-number">Módulo 3 — Concluído ✓</div>
+    <div class="module-title">Consumer Groups — escalabilidade e processamento independente</div>
+  </div>
+
+  <h3 class="sub">O que é um Consumer Group</h3>
+  <p>Um Consumer Group é um grupo de consumers que <strong>dividem o trabalho</strong> de consumir um topic. Cada partition é atribuída a apenas um consumer do grupo por vez.</p>
+
+  <h3 class="sub">Com 1 instância — pega tudo</h3>
+  <pre><code>Topic: transacao.aprovada (3 partitions)
+
+Consumer Group: clientes-api
+  Partition 0 ──→ KafkaConsumer (instância única)
+  Partition 1 ──→ KafkaConsumer (instância única)
+  Partition 2 ──→ KafkaConsumer (instância única)</code></pre>
+
+  <h3 class="sub">Com 2 instâncias — divide automaticamente</h3>
+  <pre><code>Consumer Group: clientes-api
+  Partition 0 ──→ KafkaConsumer A (instância 1)
+  Partition 1 ──→ KafkaConsumer B (instância 2)
+  Partition 2 ──→ KafkaConsumer A (instância 1)
+
+<span class="comment">// Kafka redistribui as partitions automaticamente (rebalance)
+// Mais instâncias que partitions = instâncias extras ficam ociosas
+// Por isso partitions devem ser >= instâncias esperadas</span></code></pre>
+
+  <div class="tip">
+    <div class="tip-title">Regra importante</div>
+    <p>Número máximo de consumers úteis em um grupo = número de partitions. Se você tem 3 partitions e 5 instâncias, 2 ficam ociosas. Por isso dimensionar partitions é uma decisão de arquitetura.</p>
+  </div>
+
+  <h3 class="sub">Dois grupos = dois processamentos independentes</h3>
+  <pre><code>Topic: transacao.aprovada
+         │
+         ├──→ grupo <span class="str">clientes-api</span>   → debita/credita limite no banco
+         │         offset próprio: já leu até offset 4
+         │
+         └──→ grupo <span class="str">auditoria-api</span>  → loga para auditoria/compliance
+                   offset próprio: já leu até offset 2 (mais lento, tudo bem)</code></pre>
+
+  <p>A <strong>mesma mensagem</strong> é entregue para os dois grupos. Cada grupo tem seu próprio offset salvo no topic interno <code>__consumer_offsets</code> — um não interfere no outro. Você pode ter quantos grupos quiser consumindo o mesmo topic.</p>
+
+  <h3 class="sub">Caso de uso real — XP Investimentos</h3>
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">grupo: limite-api</div>
+      <p>Debita/credita o limite do cliente em tempo real. Precisa ser rápido — SLA de 100ms.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">grupo: auditoria-api</div>
+      <p>Grava log de auditoria para compliance. Pode ser mais lento — SLA de segundos.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">grupo: notificacao-api</div>
+      <p>Envia push notification ao cliente. Independente dos outros dois.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">grupo: analytics-api</div>
+      <p>Alimenta dashboard de BI com dados de transações. Processa em batch.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">O que você viu no Kafka UI — aba Consumers</h3>
+  <pre><code>Group ID: clientes-api
+  Topic: transacao.aprovada
+  Partition 0 → Consumer host: ... | Offset: 1 | Lag: 0
+  Partition 1 → Consumer host: ... | Offset: 0 | Lag: 0
+  Partition 2 → Consumer host: ... | Offset: 5 | Lag: 0
+
+<span class="comment">// Lag = mensagens não processadas (Next Offset - Committed Offset)
+// Lag = 0 significa que o consumer está em dia
+// Lag alto = consumer está atrasado — alerta de monitoramento em produção</span></code></pre>
+
+  <h3 class="sub">O que acontece se a Clientes API cair</h3>
+  <pre><code><span class="comment">// Transacao API continua publicando normalmente</span>
+offset 5: débito João  → Partition 2  ✓ salvo no Kafka
+offset 6: crédito Maria → Partition 0  ✓ salvo no Kafka
+offset 7: débito Pedro  → Partition 2  ✓ salvo no Kafka
+
+<span class="comment">// Clientes API cai — consumer para
+// Lag sobe: 3 mensagens pendentes
+
+// Clientes API volta — consumer reinicia do último offset commitado
+// Processa offset 5, 6, 7 em ordem — nenhuma mensagem perdida</span></code></pre>
+
+  <div class="tip">
+    <div class="tip-title">Isso é o poder do Kafka</div>
+    <p>RabbitMQ perderia as mensagens se o consumer não estivesse online. O Kafka guarda tudo pelo período de retenção configurado (30 dias no nosso projeto) — o consumer pode cair e voltar quando quiser.</p>
+  </div>
+
+  <h3 class="sub">Evidência do experimento — 3 clientes, 3 partitions</h3>
+  <table>
+    <tr><th>Cliente</th><th>Key (ClienteId)</th><th>Partition</th><th>Transações</th></tr>
+    <tr><td>João Silva Teste</td><td><code>38490a9b...</code></td><td><strong>2</strong></td><td>offsets 0, 1, 2</td></tr>
+    <tr><td>Maria Oliveira</td><td><code>d1ef9b57...</code></td><td><strong>0</strong></td><td>offset 0</td></tr>
+    <tr><td>Pedro Santos</td><td><code>526a719b...</code></td><td><strong>2</strong></td><td>offsets 3, 4</td></tr>
+  </table>
+  <p>João e Pedro caíram na mesma partition — coincidência do hash com apenas 3 partitions. Com 10+ partitions a distribuição seria mais uniforme.</p>
+
+  <!-- PRÓXIMOS MÓDULOS -->
+  <h2 class="section" id="proximos">5. Próximos módulos</h2>
+
+  <div class="grid">
+    <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
+      <div class="card-title" style="color:#22c55e">✓ Módulo 3 — Consumer Groups</div>
+      <p>Concluído — grupos independentes, rebalance automático, consumer lag, at-least-once com Kafka vs RabbitMQ.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Módulo 4 — Retry e DLQ</div>
+      <p>O que acontece quando o handler falha. At-least-once delivery. Dead Letter Queue — padrão usado em produção para mensagens que falham repetidamente.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Módulo 5 — Múltiplos Topics</div>
+      <p>Quando criar um novo topic. Criar <code>cliente.limite.atualizado</code> publicado pela Clientes API após debitar/creditar.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Módulo 6 — Serialização</div>
+      <p>JSON vs Avro vs Protobuf. Schema evolution — como adicionar campos sem quebrar consumers antigos. Versionar eventos.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Módulo 7 — Produção</div>
+      <p>Replication factor, ISR, retention policy, idempotent producer, consumer lag. O que a XP Investimentos monitora.</p>
+    </div>
+  </div>
+
+  <!-- REFERÊNCIA RÁPIDA -->
+  <h2 class="section" id="referencia">6. Referência rápida</h2>
+
+  <h3 class="sub">Acessos do projeto</h3>
+  <table>
+    <tr><th>Serviço</th><th>URL</th><th>Login</th></tr>
+    <tr><td>Frontend</td><td><code>http://localhost:5173</code></td><td>Sua conta</td></tr>
+    <tr><td>Kafka UI</td><td><code>http://localhost:8080</code></td><td>Sem login</td></tr>
+    <tr><td>RabbitMQ UI</td><td><code>http://localhost:15672</code></td><td>guest / guest</td></tr>
+    <tr><td>pgAdmin</td><td><code>http://localhost:5050</code></td><td>admin@techfin.com / admin123</td></tr>
+    <tr><td>Auth API</td><td><code>http://localhost:5141/swagger</code></td><td>—</td></tr>
+    <tr><td>Clientes API</td><td><code>http://localhost:5174/swagger</code></td><td>Bearer token</td></tr>
+    <tr><td>Transacao API</td><td><code>http://localhost:5081/swagger</code></td><td>Bearer token</td></tr>
+  </table>
+
+  <h3 class="sub">Configuração Kafka no projeto (.NET)</h3>
+  <pre><code><span class="comment">// Producer — KafkaPublisher.cs</span>
+var config = new ProducerConfig { BootstrapServers = <span class="str">"localhost:29092"</span> };
+await _producer.ProduceAsync(<span class="str">"transacao.aprovada"</span>, new Message&lt;string, string&gt;
+{
+    Key = evento.ClienteId,    <span class="comment">// garante ordenação por cliente</span>
+    Value = json               <span class="comment">// JSON serializado do evento</span>
+});
+
+<span class="comment">// Consumer — KafkaConsumer.cs</span>
+var config = new ConsumerConfig
+{
+    BootstrapServers = <span class="str">"localhost:29092"</span>,
+    GroupId = <span class="str">"clientes-api"</span>,
+    AutoOffsetReset = AutoOffsetReset.Earliest,  <span class="comment">// lê do início se não tem offset salvo</span>
+    EnableAutoCommit = <span class="num">false</span>                      <span class="comment">// commit manual = mais seguro</span>
+};</code></pre>
+
+  <h3 class="sub">Kafka vs RabbitMQ — diferenças chave</h3>
+  <table>
+    <tr><th>Característica</th><th>Kafka</th><th>RabbitMQ</th></tr>
+    <tr><td>Modelo</td><td>Log distribuído (pull)</td><td>Fila de mensagens (push)</td></tr>
+    <tr><td>Retenção</td><td>Configura por tempo/tamanho (dias)</td><td>Mensagem some após consumir</td></tr>
+    <tr><td>Replay</td><td>Sim — pode reler mensagens antigas</td><td>Não</td></tr>
+    <tr><td>Escala</td><td>Milhões de msg/s, horizontalmente</td><td>Dezenas de milhares/s</td></tr>
+    <tr><td>Ordenação</td><td>Garantida por partition</td><td>Garantida por fila</td></tr>
+    <tr><td>Uso ideal</td><td>Event streaming, alta escala</td><td>Tasks, workflows simples</td></tr>
+    <tr><td>Curva de aprendizado</td><td>Maior</td><td>Menor</td></tr>
+  </table>
+
+</div>
+
+<footer>
+  Projeto: <strong>transacao-api-dotnet-react</strong> · .NET 10 + React 18 + Kafka + RabbitMQ + PostgreSQL<br>
+  Guia gerado durante as aulas práticas — continue pelo Módulo 3
+</footer>
+
+</body>
+</html>

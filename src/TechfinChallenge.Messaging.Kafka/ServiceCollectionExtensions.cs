@@ -14,6 +14,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddKafkaConsumer(this IServiceCollection services)
     {
         services.AddHostedService<KafkaConsumer>();
+        services.AddHostedService<AuditoriaConsumer>();
         return services;
     }
 }
