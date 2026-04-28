@@ -107,7 +107,7 @@
 <div class="hero">
   <h1>Apache Kafka — Guia de Estudos</h1>
   <p>Baseado no projeto <strong>transacao-api-dotnet-react</strong> com exemplos reais do código</p>
-  <span class="badge">✓ Módulos 1, 2, 3, 4 e 5 concluídos</span>
+  <span class="badge">✓ Módulos 1, 2, 3, 4, 5 e 6 concluídos</span>
 </div>
 
 <div class="container">
@@ -125,6 +125,7 @@
       <li><a href="#modulo3">Módulo 3 — Consumer Groups e escalabilidade</a></li>
       <li><a href="#modulo4">Módulo 4 — Retry e Dead Letter Queue</a></li>
       <li><a href="#modulo5">Módulo 5 — Múltiplos Topics</a></li>
+      <li><a href="#modulo6">Módulo 6 — Serialização</a></li>
       <li><a href="#proximos">Próximos módulos</a></li>
       <li><a href="#referencia">Referência rápida de comandos</a></li>
     </ol>
@@ -792,8 +793,139 @@ transacao.aprovada        ← Transacao API produz
        └→ cliente.limite.atualizado ← Clientes API produz
             └→ Auditoria consome → registra log</code></pre>
 
+  <!-- MÓDULO 6 -->
+  <div class="module-header" id="modulo6">
+    <div class="module-number">Módulo 6 — Concluído ✓</div>
+    <div class="module-title">Serialização — JSON, Avro e Protobuf, e como versionar eventos sem quebrar consumers</div>
+  </div>
+
+  <h3 class="sub">O que é serialização no contexto do Kafka</h3>
+  <p>Kafka armazena mensagens como <strong>bytes</strong>. Antes de publicar, o producer converte o objeto em bytes (serializa). Ao consumir, o consumer converte de volta (desserializa). O formato escolhido determina tamanho, velocidade, e principalmente: o que acontece quando o contrato do evento muda.</p>
+
+  <div class="flow">
+    <div class="flow-box">Objeto C#</div>
+    <div class="flow-arrow">→ serializa →</div>
+    <div class="flow-box">bytes no Kafka</div>
+    <div class="flow-arrow">→ desserializa →</div>
+    <div class="flow-box">Objeto C#</div>
+  </div>
+
+  <h3 class="sub">JSON — o que usamos hoje</h3>
+  <p>O projeto usa <code>JsonSerializer.Serialize(evento)</code> e transmite a string como UTF-8. É o formato mais simples e legível, mas tem desvantagens em escala:</p>
+
+  <pre><code><span class="comment">// O que vai no Kafka hoje — legível mas verboso</span>
+{
+  "clienteId": "abc-123",
+  "valor": 300.00,
+  "tipo": "debito"
+}
+
+<span class="comment">// ~60 bytes por mensagem
+// Kafka UI mostra o JSON diretamente — conveniente para debug</span></code></pre>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title" style="color:#22c55e">✓ Vantagens do JSON</div>
+      <p>Legível por humanos. Zero configuração. Debug direto no Kafka UI. Suporte nativo em todas as linguagens. Ideal para começar e para volumes menores.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#ef4444">✗ Desvantagens do JSON</div>
+      <p>Verboso — repete os nomes de campos em cada mensagem. Sem schema: se o producer muda um campo, o consumer quebra silenciosamente. Maior em bytes.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">Avro — o padrão de fintechs</h3>
+  <p>Avro serializa em binário usando um <strong>schema</strong> (contrato) definido em JSON. O schema é armazenado num <strong>Schema Registry</strong> (serviço separado). Producer e consumer negociam o schema pelo registry — se forem incompatíveis, a publicação é rejeitada antes de acontecer qualquer problema.</p>
+
+  <pre><code><span class="comment">// Schema Avro de TransacaoAprovadaEvent</span>
+{
+  "type": "record",
+  "name": "TransacaoAprovadaEvent",
+  "namespace": "techfin.eventos",
+  "fields": [
+    { "name": "clienteId", "type": "string" },
+    { "name": "valor",     "type": "double" },
+    { "name": "tipo",      "type": "string" }
+  ]
+}
+
+<span class="comment">// O mesmo evento ocupa ~15 bytes em Avro vs ~60 bytes em JSON
+// 4x menor — em 1 bilhão de mensagens/dia = diferença enorme de custo</span></code></pre>
+
+  <h3 class="sub">Schema Evolution — como mudar sem quebrar</h3>
+  <p>A maior vantagem do Avro é controlar mudanças de contrato. O Schema Registry aplica regras de compatibilidade automaticamente. Existem quatro estratégias:</p>
+
+  <table>
+    <tr><th>Estratégia</th><th>O que permite</th><th>O que proíbe</th></tr>
+    <tr><td><code>BACKWARD</code></td><td>Consumer novo lê mensagens antigas. Adicionar campo com default.</td><td>Remover campo sem default, mudar tipo.</td></tr>
+    <tr><td><code>FORWARD</code></td><td>Consumer antigo lê mensagens novas. Remover campo com default.</td><td>Adicionar campo obrigatório.</td></tr>
+    <tr><td><code>FULL</code></td><td>Backward + Forward ao mesmo tempo.</td><td>Qualquer mudança incompatível.</td></tr>
+    <tr><td><code>NONE</code></td><td>Qualquer mudança.</td><td>Nada — sem proteção.</td></tr>
+  </table>
+
+  <div class="tip">
+    <div class="tip-title">BACKWARD é o padrão da XP e do mercado</div>
+    <p>Você adiciona campos novos com valor <code>default</code>. Consumers antigos ignoram o campo novo (não quebram). Consumers novos usam o campo. Ninguém precisa ser atualizado ao mesmo tempo.</p>
+  </div>
+
+  <h3 class="sub">Exemplo prático: adicionar campo sem quebrar</h3>
+  <pre><code><span class="comment">// Versão 1 do evento (atual)</span>
+{ "clienteId": "abc", "valor": 300, "tipo": "debito" }
+
+<span class="comment">// Versão 2 — adiciona canal com default (BACKWARD compatível)</span>
+{ "clienteId": "abc", "valor": 300, "tipo": "debito", "canal": "app" }
+
+<span class="comment">// Avro Schema v2 com default — consumer antigo não quebra</span>
+{ "name": "canal", "type": "string", "default": "desconhecido" }
+
+<span class="comment">// Consumer antigo (lendo mensagem v2): campo "canal" é ignorado ✓
+// Consumer novo (lendo mensagem v1): campo "canal" = "desconhecido" ✓</span></code></pre>
+
+  <div class="warn">
+    <div class="warn-title">O que NUNCA fazer — mudança de tipo</div>
+    <p>Mudar <code>"valor": double</code> para <code>"valor": string</code> quebra todos os consumers existentes imediatamente. Com Schema Registry e BACKWARD, essa mudança é <strong>rejeitada na publicação</strong> — o producer recebe erro antes de contaminar o topic.</p>
+  </div>
+
+  <h3 class="sub">Protobuf — quando performance é crítica</h3>
+  <p>Protobuf (Protocol Buffers, do Google) gera código a partir de um arquivo <code>.proto</code>. É mais rápido que Avro, ocupa menos bytes, e é fortemente tipado. Usado pelo Google, Uber, e sistemas de latência ultra-baixa. Mais difícil de configurar.</p>
+
+  <pre><code><span class="comment">// Definição em .proto</span>
+message TransacaoAprovadaEvent {
+  string cliente_id = 1;
+  double valor      = 2;
+  string tipo       = 3;
+}
+
+<span class="comment">// Geração de código: dotnet add package Google.Protobuf
+// O compilador protoc gera a classe C# automaticamente</span></code></pre>
+
+  <h3 class="sub">Comparativo final</h3>
+  <table>
+    <tr><th>Formato</th><th>Tamanho</th><th>Legibilidade</th><th>Schema Registry</th><th>Quando usar</th></tr>
+    <tr><td><strong>JSON</strong></td><td>~60 bytes</td><td>Alta</td><td>Não</td><td>Projetos pequenos, APIs REST, debug</td></tr>
+    <tr><td><strong>Avro</strong></td><td>~15 bytes</td><td>Baixa (binário)</td><td>Sim — obrigatório</td><td>Kafka em produção, fintechs, microserviços</td></tr>
+    <tr><td><strong>Protobuf</strong></td><td>~10 bytes</td><td>Baixa (binário)</td><td>Opcional</td><td>Alta performance, gRPC, latência crítica</td></tr>
+  </table>
+
+  <h3 class="sub">No projeto: por que continuamos com JSON</h3>
+  <p>Para aprendizado e volume baixo, JSON é a escolha certa. Em produção na XP, o caminho seria: JSON → Avro + Schema Registry → eventos versionados com compatibilidade BACKWARD. A mudança de código seria mínima — só o serializer e a configuração do producer/consumer.</p>
+
+  <pre><code><span class="comment">// Hoje — JSON puro</span>
+Value = JsonSerializer.Serialize(evento)
+
+<span class="comment">// Com Avro (Confluent.SchemaRegistry.Serdes.Avro)</span>
+var config = new ProducerConfig { BootstrapServers = <span class="str">"localhost:29092"</span> };
+var schemaConfig = new SchemaRegistryConfig { Url = <span class="str">"http://localhost:8081"</span> };
+
+using var schemaRegistry = new CachedSchemaRegistryClient(schemaConfig);
+using var producer = new ProducerBuilder&lt;string, TransacaoAprovadaEvent&gt;(config)
+    .SetValueSerializer(new AvroSerializer&lt;TransacaoAprovadaEvent&gt;(schemaRegistry))
+    .Build();
+
+<span class="comment">// O schema é registrado e versionado automaticamente na primeira publicação</span></code></pre>
+
   <!-- PRÓXIMOS MÓDULOS -->
-  <h2 class="section" id="proximos">6. Próximos módulos</h2>
+  <h2 class="section" id="proximos">7. Próximos módulos</h2>
 
   <div class="grid">
     <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
@@ -808,9 +940,9 @@ transacao.aprovada        ← Transacao API produz
       <div class="card-title" style="color:#22c55e">✓ Módulo 5 — Múltiplos Topics</div>
       <p>Concluído — quando separar topics, convenção de nomes, Subscribe em lista, event chain (produtor e consumidor no mesmo serviço), topic explosion.</p>
     </div>
-    <div class="card">
-      <div class="card-title">Módulo 6 — Serialização</div>
-      <p>JSON vs Avro vs Protobuf. Schema evolution — como adicionar campos sem quebrar consumers antigos. Versionar eventos.</p>
+    <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
+      <div class="card-title" style="color:#22c55e">✓ Módulo 6 — Serialização</div>
+      <p>Concluído — JSON vs Avro vs Protobuf, Schema Registry, BACKWARD compatibility, schema evolution sem quebrar consumers, comparativo de tamanho.</p>
     </div>
     <div class="card">
       <div class="card-title">Módulo 7 — Produção</div>
@@ -867,7 +999,7 @@ var config = new ConsumerConfig
 
 <footer>
   Projeto: <strong>transacao-api-dotnet-react</strong> · .NET 10 + React 18 + Kafka + RabbitMQ + PostgreSQL<br>
-  Guia gerado durante as aulas práticas — Módulos 1 a 5 concluídos
+  Guia gerado durante as aulas práticas — Módulos 1 a 6 concluídos
 </footer>
 
 </body>
