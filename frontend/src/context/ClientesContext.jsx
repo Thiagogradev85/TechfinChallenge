@@ -45,8 +45,18 @@ export function ClientesProvider({ children }) {
     await reload();
   };
 
+  // Optimistic update: subtrai o valor do limite localmente de imediato,
+  // sem esperar o RabbitMQ processar o evento no backend.
+  const debitarLimite = (clienteId, valor) => {
+    setClientes((prev) =>
+      prev.map((c) =>
+        c.id === clienteId ? { ...c, valorLimite: c.valorLimite - valor } : c
+      )
+    );
+  };
+
   return (
-    <ClientesContext.Provider value={{ clientes, loading, reload, criar, atualizar, deletar }}>
+    <ClientesContext.Provider value={{ clientes, loading, reload, criar, atualizar, deletar, debitarLimite }}>
       {children}
     </ClientesContext.Provider>
   );

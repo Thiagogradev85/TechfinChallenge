@@ -10,7 +10,7 @@ import { formatCurrency } from '../utils/formatters';
 
 export default function TransacoesPage() {
   const { transacoes, loading, simular } = useTransacoes();
-  const { clientes, reload: recarregarClientes } = useClientesContext();
+  const { clientes, debitarLimite } = useClientesContext();
   const [simulating, setSimulating] = useState(false);
   const [lastResult, setLastResult] = useState(null);
 
@@ -22,8 +22,7 @@ export default function TransacoesPage() {
       setLastResult(data);
       if (data.status === 'APROVADO') {
         toast.success(`Aprovada! ID: ${data.idTransacao?.slice(0, 8)}…`);
-        setTimeout(recarregarClientes, 800);
-        setTimeout(recarregarClientes, 2500);
+        debitarLimite(dto.idCliente, dto.valorSimulacao);
       } else {
         toast.error('Transação negada — limite insuficiente.');
       }
