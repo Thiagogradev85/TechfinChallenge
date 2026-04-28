@@ -49,6 +49,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddMemoryCache();
 
+builder.Services.AddSingleton<TestRunnerService>();
 builder.Services.AddSingleton<IClienteRepository, ClienteRepository>();
 builder.Services.AddSingleton<IClienteService, ClienteService>();
 builder.Services.AddSingleton<ITransacaoEventHandler, TransacaoEventHandler>();

@@ -7,6 +7,7 @@ import {
   Settings,
   LogOut,
   Zap,
+  FlaskConical,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Badge from '../ui/Badge';
@@ -17,6 +18,7 @@ const links = [
   { to: '/clientes', label: 'Clientes', icon: Users },
   { to: '/transacoes', label: 'Transações', icon: ArrowLeftRight },
   { to: '/settings', label: 'Configurações', icon: Settings },
+  { to: '/tests', label: 'Testes', icon: FlaskConical },
 ];
 
 export default function Sidebar() {

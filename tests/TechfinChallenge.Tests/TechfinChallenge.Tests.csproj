@@ -24,6 +24,12 @@
     <ProjectReference Include="..\..\src\TechfinChallenge.Transacao.Api\TechfinChallenge.Transacao.Api.csproj" />
     <ProjectReference Include="..\..\src\TechfinChallenge.Shared\TechfinChallenge.Shared.csproj" />
     <ProjectReference Include="..\..\src\TechfinChallenge.Messaging.Abstractions\TechfinChallenge.Messaging.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\TechfinChallenge.Messaging.Kafka\TechfinChallenge.Messaging.Kafka.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" Version="2.14.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
   </ItemGroup>
 
 </Project>
