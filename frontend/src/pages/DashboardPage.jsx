@@ -2,29 +2,29 @@ import { useEffect, useState } from 'react';
 import { Users, ArrowLeftRight, DollarSign, TrendingUp } from 'lucide-react';
 import Stat from '../components/ui/Stat';
 import Card from '../components/ui/Card';
-import { listarClientes } from '../api/clientes';
+import { useClientesContext } from '../context/ClientesContext';
 import { listarTransacoes } from '../api/transacoes';
 import { formatCurrency } from '../utils/formatters';
 
 export default function DashboardPage() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { clientes, loading: loadingClientes } = useClientesContext();
+  const [transacoes, setTransacoes] = useState([]);
+  const [loadingT, setLoadingT] = useState(true);
 
   useEffect(() => {
-    Promise.all([listarClientes(), listarTransacoes()])
-      .then(([cRes, tRes]) => {
-        const clientes = cRes.data ?? [];
-        const transacoes = tRes.data ?? [];
-        setData({
-          totalClientes: clientes.length,
-          totalTransacoes: transacoes.length,
-          limiteTotal: clientes.reduce((s, c) => s + (c.valorLimite ?? 0), 0),
-          totalTransacionado: transacoes.reduce((s, t) => s + (t.valor ?? 0), 0),
-        });
-      })
+    listarTransacoes()
+      .then((res) => setTransacoes(res.data ?? []))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingT(false));
   }, []);
+
+  const loading = loadingClientes || loadingT;
+  const data = {
+    totalClientes: clientes.length,
+    totalTransacoes: transacoes.length,
+    limiteTotal: clientes.reduce((s, c) => s + (c.valorLimite ?? 0), 0),
+    totalTransacionado: transacoes.reduce((s, t) => s + (t.valor ?? 0), 0),
+  };
 
   const val = (v) => (loading ? '...' : v);
 

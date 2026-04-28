@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import useTransacoes from '../hooks/useTransacoes';
-import useClientes from '../hooks/useClientes';
+import { useClientesContext } from '../context/ClientesContext';
 import Table from '../components/ui/Table';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
@@ -10,7 +10,7 @@ import { formatCurrency } from '../utils/formatters';
 
 export default function TransacoesPage() {
   const { transacoes, loading, simular } = useTransacoes();
-  const { clientes } = useClientes();
+  const { clientes, reload: recarregarClientes } = useClientesContext();
   const [simulating, setSimulating] = useState(false);
   const [lastResult, setLastResult] = useState(null);
 
@@ -22,6 +22,7 @@ export default function TransacoesPage() {
       setLastResult(data);
       if (data.status === 'APROVADO') {
         toast.success(`Aprovada! ID: ${data.idTransacao?.slice(0, 8)}…`);
+        setTimeout(recarregarClientes, 800);
       } else {
         toast.error('Transação negada — limite insuficiente.');
       }

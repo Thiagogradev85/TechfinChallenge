@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import useClientes from '../hooks/useClientes';
+import { useClientesContext } from '../context/ClientesContext';
 import Table from '../components/ui/Table';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
@@ -11,7 +11,7 @@ import Card from '../components/ui/Card';
 import { formatCPF, formatCurrency } from '../utils/formatters';
 
 export default function ClientesPage() {
-  const { clientes, loading, criar, atualizar, deletar } = useClientes();
+  const { clientes, loading, criar, atualizar, deletar } = useClientesContext();
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState({ type: null, cliente: null });
   const [saving, setSaving] = useState(false);

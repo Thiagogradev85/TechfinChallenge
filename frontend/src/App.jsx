@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ClientesProvider } from './context/ClientesContext';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -25,7 +26,9 @@ function AppRoutes() {
         path="/"
         element={
           <ProtectedRoute>
-            <Layout />
+            <ClientesProvider>
+              <Layout />
+            </ClientesProvider>
           </ProtectedRoute>
         }
       >
