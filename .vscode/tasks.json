@@ -1,0 +1,44 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-auth",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/TechfinChallenge.Auth.Api/TechfinChallenge.Auth.Api.csproj",
+        "--configuration", "Debug"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-clientes",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/TechfinChallenge.Clientes.Api/TechfinChallenge.Clientes.Api.csproj",
+        "--configuration", "Debug"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-transacao",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/TechfinChallenge.Transacao.Api/TechfinChallenge.Transacao.Api.csproj",
+        "--configuration", "Debug"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-kafka-flow",
+      "dependsOn": ["build-clientes", "build-transacao"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

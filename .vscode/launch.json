@@ -1,0 +1,77 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Auth API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-auth",
+      "program": "${workspaceFolder}/src/TechfinChallenge.Auth.Api/bin/Debug/net10.0/TechfinChallenge.Auth.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/TechfinChallenge.Auth.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5141"
+      },
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "Clientes API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-clientes",
+      "program": "${workspaceFolder}/src/TechfinChallenge.Clientes.Api/bin/Debug/net10.0/TechfinChallenge.Clientes.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/TechfinChallenge.Clientes.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5174"
+      },
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "Transacao API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-transacao",
+      "program": "${workspaceFolder}/src/TechfinChallenge.Transacao.Api/bin/Debug/net10.0/TechfinChallenge.Transacao.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/TechfinChallenge.Transacao.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5081"
+      },
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    },
+    {
+      "name": "Kafka Flow (Transacao + Clientes)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-kafka-flow",
+      "program": "${workspaceFolder}/src/TechfinChallenge.Transacao.Api/bin/Debug/net10.0/TechfinChallenge.Transacao.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/TechfinChallenge.Transacao.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5081"
+      },
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Todas as APIs (Debug)",
+      "configurations": ["Auth API", "Clientes API", "Transacao API"],
+      "stopAll": true
+    },
+    {
+      "name": "Kafka Flow — Producer + Consumer",
+      "configurations": ["Clientes API", "Transacao API"],
+      "stopAll": true
+    }
+  ]
+}
