@@ -4,8 +4,8 @@
   "description": "Case técnico — TechfinChallenge",
   "private": true,
   "scripts": {
-    "dev": "bash scripts/ensure-docker.sh && dotnet build && concurrently --kill-others-on-fail --prefix-colors \"yellow.bold,cyan.bold,green.bold,magenta.bold\" --names \"AUTH   ,CLIENTES,TRANSAC ,FRONTEND\" \"dotnet run --no-build --project src/TechfinChallenge.Auth.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Clientes.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Transacao.Api\" \"npm run dev --prefix frontend\"",
-    "dev:back": "bash scripts/ensure-docker.sh && dotnet build && concurrently --kill-others-on-fail --prefix-colors \"yellow.bold,cyan.bold,green.bold\" --names \"AUTH   ,CLIENTES,TRANSAC\" \"dotnet run --no-build --project src/TechfinChallenge.Auth.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Clientes.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Transacao.Api\"",
+    "dev": "node scripts/ensure-docker.js && dotnet build && concurrently --kill-others-on-fail --prefix-colors \"yellow.bold,cyan.bold,green.bold,magenta.bold\" --names \"AUTH   ,CLIENTES,TRANSAC ,FRONTEND\" \"dotnet run --no-build --project src/TechfinChallenge.Auth.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Clientes.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Transacao.Api\" \"npm run dev --prefix frontend\"",
+    "dev:back": "node scripts/ensure-docker.js && dotnet build && concurrently --kill-others-on-fail --prefix-colors \"yellow.bold,cyan.bold,green.bold\" --names \"AUTH   ,CLIENTES,TRANSAC\" \"dotnet run --no-build --project src/TechfinChallenge.Auth.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Clientes.Api\" \"dotnet run --no-build --project src/TechfinChallenge.Transacao.Api\"",
     "dev:front": "npm run dev --prefix frontend",
     "build:front": "npm run build --prefix frontend",
     "test:back": "dotnet test"
