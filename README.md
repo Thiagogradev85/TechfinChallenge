@@ -10,20 +10,25 @@ Case técnico para a vaga de Analista de Desenvolvimento de Software na Techfin.
 
 ## Como subir tudo com um comando
 
+**Pré-requisito:** Docker Desktop precisa estar aberto (ícone na bandeja do sistema).
+
 Na raiz do projeto:
 
 ```bash
 npm install        # apenas na primeira vez
-npm run dev        # sobe Docker + 3 APIs + frontend
+npm run dev        # verifica Docker → build → 3 APIs + frontend
 ```
 
 O comando `npm run dev` automaticamente:
-1. Inicia os containers Docker (PostgreSQL, Kafka, pgAdmin, etc.)
-2. Compila o projeto .NET
-3. Sobe as 3 APIs em paralelo
-4. Sobe o frontend React
+1. Verifica se o Docker Desktop está rodando (para se não estiver)
+2. Sobe os containers se ainda não estiverem no ar (pula se já estiverem)
+3. Compila o projeto .NET
+4. Sobe as 3 APIs em paralelo
+5. Sobe o frontend React
 
 Acesse o sistema em: **http://localhost:5173**
+
+> Precisa subir só os containers sem o restante? Use `docker-compose up -d` na raiz.
 
 ## Acessos
 
