@@ -835,6 +835,35 @@ transacao.aprovada        ← Transacao API produz
   </div>
 
   <h3 class="sub">Avro — o padrão de fintechs</h3>
+
+  <p>Antes de qualquer detalhe técnico: Avro <strong>não é um formato de texto como JSON</strong>. Se você abrir uma mensagem Avro num editor vai ver caracteres estranhos — é binário. O computador lê, você não.</p>
+
+  <h3 class="sub">A analogia da planilha — como Avro funciona de verdade</h3>
+  <p>Imagine uma planilha Excel com cabeçalho. <strong>JSON</strong> é como mandar a tabela inteira com o cabeçalho repetido em cada linha:</p>
+
+  <pre><code><span class="comment">// JSON — cabeçalho repetido em cada mensagem (~60 bytes cada)</span>
+{"clienteId":"abc-123","valor":300,"tipo":"debito"}
+{"clienteId":"xyz-456","valor":150,"tipo":"credito"}
+{"clienteId":"def-789","valor":500,"tipo":"debito"}</code></pre>
+
+  <p><strong>Avro</strong> combina o cabeçalho (schema) uma vez só, guarda separado no Schema Registry, e manda só os valores:</p>
+
+  <pre><code><span class="comment">// Avro — só os dados, sem nomes de campo (~15 bytes cada)</span>
+abc-123 | 300 | debito
+xyz-456 | 150 | credito
+def-789 | 500 | debito
+
+<span class="comment">// O Schema Registry guarda que "coluna 1 = clienteId, coluna 2 = valor..."
+// Consumer busca o schema lá e reconstrói o objeto corretamente</span></code></pre>
+
+  <div class="tip">
+    <div class="tip-title">Como o Schema Registry funciona na prática</div>
+    <p>1. Producer envia o schema ao Registry → recebe ID 42<br>
+    2. Producer publica mensagens com <code>ID:42 + dados binários</code><br>
+    3. Consumer vê ID 42 → busca schema no Registry → desserializa<br>
+    <strong>Se o schema mudar de forma incompatível, o Registry rejeita antes de qualquer mensagem ir pro Kafka.</strong></p>
+  </div>
+
   <p>Avro serializa em binário usando um <strong>schema</strong> (contrato) definido em JSON. O schema é armazenado num <strong>Schema Registry</strong> (serviço separado). Producer e consumer negociam o schema pelo registry — se forem incompatíveis, a publicação é rejeitada antes de acontecer qualquer problema.</p>
 
   <pre><code><span class="comment">// Schema Avro de TransacaoAprovadaEvent</span>
@@ -887,24 +916,72 @@ transacao.aprovada        ← Transacao API produz
   </div>
 
   <h3 class="sub">Protobuf — quando performance é crítica</h3>
-  <p>Protobuf (Protocol Buffers, do Google) gera código a partir de um arquivo <code>.proto</code>. É mais rápido que Avro, ocupa menos bytes, e é fortemente tipado. Usado pelo Google, Uber, e sistemas de latência ultra-baixa. Mais difícil de configurar.</p>
 
-  <pre><code><span class="comment">// Definição em .proto</span>
+  <p>Protobuf (Protocol Buffers) foi criado pelo Google em 2001 para resolver um problema interno: o Google tem centenas de serviços (Search, Gmail, Maps, YouTube) que se comunicam o tempo todo. JSON era lento e grande demais pra escala deles. Então criaram um formato binário próprio — e abriram o código em 2008.</p>
+
+  <h3 class="sub">Como o Protobuf funciona — a ideia dos números</h3>
+  <p>Com JSON você manda nome + valor. Com Protobuf você define um arquivo <code>.proto</code> onde cada campo ganha um <strong>número fixo</strong>. Em vez do nome do campo, vai só o número:</p>
+
+  <pre><code><span class="comment">// Arquivo transacao.proto — contrato do evento</span>
 message TransacaoAprovadaEvent {
-  string cliente_id = 1;
-  double valor      = 2;
-  string tipo       = 3;
+  string cliente_id = <span class="num">1</span>;   <span class="comment">// campo 1</span>
+  double valor      = <span class="num">2</span>;   <span class="comment">// campo 2</span>
+  string tipo       = <span class="num">3</span>;   <span class="comment">// campo 3</span>
 }
 
-<span class="comment">// Geração de código: dotnet add package Google.Protobuf
-// O compilador protoc gera a classe C# automaticamente</span></code></pre>
+<span class="comment">// Na mensagem binária, em vez de "clienteId":"abc-123" (22 bytes)
+// vai só:  1:"abc-123"  (~9 bytes)
+// O receptor sabe que campo 1 = clienteId porque tem o .proto</span></code></pre>
+
+  <p>O número <code>= 1</code> não é um valor — é o <strong>identificador permanente do campo</strong>. Se você adicionar campos novos, eles recebem números novos. Consumers antigos que não conhecem o campo novo simplesmente ignoram. Por isso Protobuf também tem compatibilidade de versão sem Schema Registry.</p>
+
+  <h3 class="sub">protoc — o compilador que gera o código por você</h3>
+  <p>Você escreve o <code>.proto</code> uma vez. Uma ferramenta chamada <code>protoc</code> gera automaticamente a classe C# (ou Java, Go, Python...). Você nunca escreve a lógica de serialização na mão:</p>
+
+  <pre><code><span class="comment">// 1. Escreve transacao.proto</span>
+<span class="comment">// 2. Roda o compilador:</span>
+protoc --csharp_out=. transacao.proto
+
+<span class="comment">// 3. protoc gera TransacaoAprovadaEvent.cs automaticamente</span>
+<span class="comment">// 4. No código, usa a classe gerada normalmente:</span>
+var evento = new TransacaoAprovadaEvent
+{
+    ClienteId = <span class="str">"abc-123"</span>,
+    Valor = <span class="num">300</span>,
+    Tipo = <span class="str">"debito"</span>
+};
+
+<span class="comment">// Serialização — uma linha, igual ao JSON</span>
+var bytes = evento.ToByteArray();</code></pre>
+
+  <div class="tip">
+    <div class="tip-title">Onde você vai encontrar Protobuf na vida real</div>
+    <p>
+      <strong>gRPC</strong> — protocolo de comunicação entre microserviços do Google, Netflix, Uber. Usa Protobuf obrigatoriamente. Se a vaga menciona gRPC, você vai usar Protobuf.<br><br>
+      <strong>Trading de alta frequência (HFT)</strong> — onde microssegundos importam e JSON é inaceitavelmente lento.<br><br>
+      <strong>Kafka em fintechs grandes</strong> — quando o volume é tão alto que até os 5 bytes a menos que Avro fazem diferença no custo de armazenamento.<br><br>
+      <strong>.NET 6+</strong> — ASP.NET Core tem suporte nativo a gRPC + Protobuf. Você declara o <code>.proto</code> no csproj e o código é gerado no build automaticamente.
+    </p>
+  </div>
+
+  <h3 class="sub">Por que Protobuf é mais rápido que Avro</h3>
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Avro</div>
+      <p>O schema pode ser inline na mensagem ou buscado no Registry em runtime. A busca adiciona uma chamada de rede. Em sistemas de baixíssima latência, isso é custo.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Protobuf</div>
+      <p>O schema está compilado no código. Não tem busca em runtime — a serialização é pura CPU. Por isso é mais rápido, a custo de precisar recompilar quando o schema muda.</p>
+    </div>
+  </div>
 
   <h3 class="sub">Comparativo final</h3>
   <table>
-    <tr><th>Formato</th><th>Tamanho</th><th>Legibilidade</th><th>Schema Registry</th><th>Quando usar</th></tr>
-    <tr><td><strong>JSON</strong></td><td>~60 bytes</td><td>Alta</td><td>Não</td><td>Projetos pequenos, APIs REST, debug</td></tr>
-    <tr><td><strong>Avro</strong></td><td>~15 bytes</td><td>Baixa (binário)</td><td>Sim — obrigatório</td><td>Kafka em produção, fintechs, microserviços</td></tr>
-    <tr><td><strong>Protobuf</strong></td><td>~10 bytes</td><td>Baixa (binário)</td><td>Opcional</td><td>Alta performance, gRPC, latência crítica</td></tr>
+    <tr><th>Formato</th><th>Tamanho</th><th>Debug</th><th>Schema externo</th><th>gRPC</th><th>Quando usar</th></tr>
+    <tr><td><strong>JSON</strong></td><td>~60 bytes</td><td>Legível</td><td>Não</td><td>Não</td><td>Início, APIs REST, Kafka de aprendizado</td></tr>
+    <tr><td><strong>Avro</strong></td><td>~15 bytes</td><td>Binário</td><td>Schema Registry</td><td>Não</td><td>Kafka em produção, fintechs, microserviços</td></tr>
+    <tr><td><strong>Protobuf</strong></td><td>~10 bytes</td><td>Binário</td><td>Arquivo .proto</td><td>✓ Nativo</td><td>gRPC, HFT, latência crítica, .NET moderno</td></tr>
   </table>
 
   <h3 class="sub">No projeto: por que continuamos com JSON</h3>
