@@ -107,7 +107,7 @@
 <div class="hero">
   <h1>Apache Kafka — Guia de Estudos</h1>
   <p>Baseado no projeto <strong>transacao-api-dotnet-react</strong> com exemplos reais do código</p>
-  <span class="badge">✓ Módulos 1, 2, 3, 4, 5 e 6 concluídos</span>
+  <span class="badge">✓ Módulos 1 a 7 concluídos</span>
 </div>
 
 <div class="container">
@@ -126,6 +126,7 @@
       <li><a href="#modulo4">Módulo 4 — Retry e Dead Letter Queue</a></li>
       <li><a href="#modulo5">Módulo 5 — Múltiplos Topics</a></li>
       <li><a href="#modulo6">Módulo 6 — Serialização</a></li>
+      <li><a href="#modulo7">Módulo 7 — Kafka em Produção</a></li>
       <li><a href="#proximos">Próximos módulos</a></li>
       <li><a href="#referencia">Referência rápida de comandos</a></li>
     </ol>
@@ -964,6 +965,32 @@ var bytes = evento.ToByteArray();</code></pre>
     </p>
   </div>
 
+  <h3 class="sub">Glossário: gRPC e HFT — o que significam</h3>
+
+  <div class="concept">
+    <div class="concept-icon">🔗</div>
+    <div>
+      <div class="concept-title">gRPC — google Remote Procedure Call</div>
+      <div class="concept-desc">
+        <p>"Remote Procedure Call" = chamada de procedimento remoto. A ideia: você chama um método no seu código como se fosse local, mas ele executa em outro servidor na rede.</p>
+        <p>Comparando com o que você já conhece: <strong>REST</strong> (o que o projeto usa) expõe endpoints como <code>POST /transacoes</code>. <strong>gRPC</strong> expõe métodos como <code>transacaoService.Autorizar(dto)</code> — parece uma chamada local, mas vai pela rede em Protobuf sobre HTTP/2.</p>
+        <p>A XP usa REST nas APIs públicas (apps, parceiros) e gRPC na comunicação interna entre microserviços, onde performance é crítica. <strong>Se uma vaga menciona gRPC, você vai usar Protobuf obrigatoriamente.</strong> O ASP.NET Core tem suporte nativo: você declara o <code>.proto</code> no csproj e o código é gerado automaticamente no build.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="concept">
+    <div class="concept-icon">⚡</div>
+    <div>
+      <div class="concept-title">HFT — High Frequency Trading (Trading de Alta Frequência)</div>
+      <div class="concept-desc">
+        <p>Segmento do mercado financeiro onde algoritmos fazem <strong>milhares de ordens de compra e venda por segundo</strong>. Os ganhos são centavos por operação — mas em milhões de operações por segundo vira muito dinheiro.</p>
+        <p>Nesse contexto, cada <strong>microssegundo</strong> (0,000001 segundo) de latência é dinheiro perdido. Por isso HFT usa Protobuf (mais rápido que JSON ou Avro), fica fisicamente próximo das bolsas (co-location na B3 em São Paulo), e às vezes usa C++ em vez de C# pra eliminar o garbage collector.</p>
+        <p>A XP tem operações de HFT. Você não precisa trabalhar diretamente nisso pra a vaga que está mirando — mas saber o que é e por que usam Protobuf te dá contexto quando aparecer em entrevista.</p>
+      </div>
+    </div>
+  </div>
+
   <h3 class="sub">Por que Protobuf é mais rápido que Avro</h3>
   <div class="grid">
     <div class="card">
@@ -1001,8 +1028,163 @@ using var producer = new ProducerBuilder&lt;string, TransacaoAprovadaEvent&gt;(c
 
 <span class="comment">// O schema é registrado e versionado automaticamente na primeira publicação</span></code></pre>
 
+  <!-- MÓDULO 7 -->
+  <div class="module-header" id="modulo7">
+    <div class="module-number">Módulo 7 — Concluído ✓</div>
+    <div class="module-title">Kafka em Produção — o que fintechs como a XP monitoram e configuram</div>
+  </div>
+
+  <h3 class="sub">Replication Factor — o que acontece quando um broker cai</h3>
+  <p>No projeto temos apenas 1 broker Kafka (um container Docker). Em produção, fintechs rodam clusters com 3 ou mais brokers. O <strong>Replication Factor</strong> define em quantos brokers cada partição é copiada:</p>
+
+  <div class="partition-viz">
+    <div class="topic-name">transacao.debito — Replication Factor: 3</div>
+    <div class="partition-row">
+      <span class="partition-label">Broker 1 (líder)</span>
+      <span class="msg-box highlight">Partition 0 — LÍDER</span>
+      <span class="msg-box">Partition 1 — réplica</span>
+    </div>
+    <div class="partition-row">
+      <span class="partition-label">Broker 2</span>
+      <span class="msg-box">Partition 0 — réplica</span>
+      <span class="msg-box highlight">Partition 1 — LÍDER</span>
+    </div>
+    <div class="partition-row">
+      <span class="partition-label">Broker 3</span>
+      <span class="msg-box">Partition 0 — réplica</span>
+      <span class="msg-box">Partition 1 — réplica</span>
+    </div>
+  </div>
+
+  <p>Se o Broker 1 cair, o Broker 2 ou 3 assume a liderança da Partition 0 automaticamente — em segundos. Sem perda de mensagens, sem interrupção visível pra quem produz ou consome.</p>
+
+  <div class="tip">
+    <div class="tip-title">Regra de ouro — Replication Factor 3</div>
+    <p>RF=3 é o padrão de mercado: tolera 1 broker caindo sem problema. RF=1 (nosso projeto) perde tudo se o broker cair. RF=5 é overkill e gasta storage à toa. <strong>Em produção na XP: RF=3 mínimo.</strong></p>
+  </div>
+
+  <h3 class="sub">ISR — In-Sync Replicas</h3>
+  <p><strong>ISR</strong> (In-Sync Replicas) é o conjunto de réplicas que estão <em>em dia</em> com o líder. Uma réplica sai do ISR se demorar mais de 10 segundos pra confirmar que recebeu as últimas mensagens (configurável por <code>replica.lag.time.max.ms</code>).</p>
+
+  <pre><code><span class="comment">// Cenário normal: ISR = [broker1, broker2, broker3]
+// Broker 3 sobrecarregado: ISR = [broker1, broker2]  ← broker3 saiu do ISR
+// Producer com acks=all só aguarda broker1 e broker2 confirmarem</span>
+
+<span class="comment">// Configuração no producer — quantas réplicas devem confirmar</span>
+var config = new ProducerConfig
+{
+    Acks = Acks.All,   <span class="comment">// espera todas as réplicas do ISR confirmarem</span>
+    <span class="comment">// Acks.Leader = só o líder confirma (mais rápido, menos seguro)</span>
+    <span class="comment">// Acks.None   = nem o líder confirma (mais rápido, pode perder)</span>
+};</code></pre>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title"><code>Acks.None</code></div>
+      <p>Producer envia e segue sem esperar confirmação. Máxima velocidade, mínima garantia. Usado em métricas que podem ser perdidas sem impacto.</p>
+    </div>
+    <div class="card">
+      <div class="card-title"><code>Acks.Leader</code></div>
+      <p>Só o líder confirma. Rápido, mas se o líder cair antes de replicar, a mensagem se perde. Aceitável para dados não críticos.</p>
+    </div>
+    <div class="card">
+      <div class="card-title"><code>Acks.All</code></div>
+      <p>Todos os brokers do ISR confirmam. Mais lento, máxima durabilidade. <strong>Padrão para transações financeiras.</strong> Uma mensagem confirmada nunca se perde.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">Consumer Lag — o indicador mais importante em produção</h3>
+  <p><strong>Consumer Lag</strong> é a diferença entre o último offset publicado no topic e o último offset consumido pelo seu grupo. É o "quanto o consumer está atrasado em relação ao producer".</p>
+
+  <div class="offset-viz">
+    <div class="offset-row">
+      <div class="offset-cell header">Offset</div>
+      <div class="offset-cell header">0</div>
+      <div class="offset-cell header">1</div>
+      <div class="offset-cell header">2</div>
+      <div class="offset-cell header">3</div>
+      <div class="offset-cell header">4</div>
+      <div class="offset-cell header">5</div>
+      <div class="offset-cell header">6</div>
+      <div class="offset-cell header">7</div>
+    </div>
+    <div class="offset-row">
+      <div class="offset-cell header">Status</div>
+      <div class="offset-cell committed">✓</div>
+      <div class="offset-cell committed">✓</div>
+      <div class="offset-cell committed">✓</div>
+      <div class="offset-cell committed">✓</div>
+      <div class="offset-cell current">← consumer</div>
+      <div class="offset-cell pending">pendente</div>
+      <div class="offset-cell pending">pendente</div>
+      <div class="offset-cell pending">← producer</div>
+    </div>
+  </div>
+
+  <p>Nesse exemplo o consumer está no offset 4, o producer está no offset 7. <strong>Consumer Lag = 3</strong>. Significa que 3 mensagens foram publicadas mas ainda não processadas.</p>
+
+  <pre><code><span class="comment">// Ver consumer lag no terminal (dentro do container)</span>
+docker exec -it techfin-kafka kafka-consumer-groups \
+  --bootstrap-server localhost:9092 \
+  --describe --group clientes-api
+
+<span class="comment">// Saída:</span>
+<span class="comment">// GROUP         TOPIC              PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG</span>
+<span class="comment">// clientes-api  transacao.debito   0          47              47              0    ← saudável</span>
+<span class="comment">// clientes-api  transacao.credito  0          23              31              8    ← atrasado!</span></code></pre>
+
+  <div class="warn">
+    <div class="warn-title">Consumer lag crescendo = alerta crítico</div>
+    <p>Lag 0 = consumer em dia. Lag crescendo = consumer mais lento que o producer — vai acumular até ficar impossível de alcançar. Causa típica: handler lento, banco sobrecarregado, thread única com mensagens pesadas. Em fintechs como a XP, lag acima de X mensagens dispara alerta no PagerDuty e acorda alguém de plantão.</p>
+  </div>
+
+  <h3 class="sub">Idempotent Producer — evitar duplicatas</h3>
+  <p>O producer com <code>Acks.All</code> pode publicar a mesma mensagem duas vezes: publica, a rede cai antes da confirmação chegar, ele tenta de novo — e o broker recebe duplicado. O <strong>Idempotent Producer</strong> resolve isso:</p>
+
+  <pre><code><span class="comment">// Habilitar idempotência no producer</span>
+var config = new ProducerConfig
+{
+    BootstrapServers = <span class="str">"localhost:29092"</span>,
+    Acks = Acks.All,
+    EnableIdempotence = <span class="num">true</span>,  <span class="comment">// cada mensagem recebe um ID único</span>
+    <span class="comment">// O broker descarta automaticamente se já recebeu aquele ID</span>
+};
+
+<span class="comment">// Com EnableIdempotence = true:
+// Producer retransmite → broker vê ID duplicado → descarta silenciosamente
+// Resultado: exatamente uma vez no topic, sem código extra</span></code></pre>
+
+  <h3 class="sub">Retention Policy — quanto tempo Kafka guarda as mensagens</h3>
+  <p>O Kafka não apaga mensagens depois de consumir (diferente do RabbitMQ). Ele guarda por tempo ou por tamanho:</p>
+
+  <pre><code><span class="comment">// No docker-compose.yml do projeto (Módulo 2)</span>
+KAFKA_LOG_RETENTION_HOURS: <span class="num">720</span>   <span class="comment">// 30 dias</span>
+KAFKA_LOG_RETENTION_BYTES: <span class="num">-1</span>    <span class="comment">// sem limite de tamanho</span>
+
+<span class="comment">// Por topic (mais granular — via kafka-configs)</span>
+docker exec techfin-kafka kafka-configs \
+  --bootstrap-server localhost:9092 \
+  --alter --entity-type topics --entity-name transacao.debito \
+  --add-config retention.ms=86400000   <span class="comment">// 1 dia = 86400000ms</span></code></pre>
+
+  <h3 class="sub">O que a XP monitora no dia a dia</h3>
+  <table>
+    <tr><th>Métrica</th><th>O que indica</th><th>Alerta quando</th></tr>
+    <tr><td><strong>Consumer Lag</strong></td><td>Mensagens pendentes de processar</td><td>Crescendo continuamente</td></tr>
+    <tr><td><strong>Throughput (msg/s)</strong></td><td>Volume de mensagens por segundo</td><td>Cai abruptamente</td></tr>
+    <tr><td><strong>ISR count</strong></td><td>Réplicas em sincronia</td><td>Abaixo do Replication Factor</td></tr>
+    <tr><td><strong>Under-replicated partitions</strong></td><td>Partições sem réplicas suficientes</td><td>Qualquer valor > 0</td></tr>
+    <tr><td><strong>Producer error rate</strong></td><td>Falhas de publicação</td><td>Qualquer valor > 0 em transações</td></tr>
+    <tr><td><strong>Disk usage por broker</strong></td><td>Espaço de armazenamento</td><td>Acima de 70%</td></tr>
+  </table>
+
+  <div class="tip">
+    <div class="tip-title">Ferramenta de monitoramento — o que você verá em empresas</div>
+    <p>Grafana + Prometheus (ou Datadog) com dashboards de Consumer Lag por grupo e topic. O Kafka UI do projeto (<code>localhost:8080</code>) já mostra lag na aba <strong>Consumers</strong> — é uma versão simplificada do que times de plataforma usam. Em entrevista na XP, mencionar que monitoraria consumer lag como primeiro indicador de problema demonstra maturidade.</p>
+  </div>
+
   <!-- PRÓXIMOS MÓDULOS -->
-  <h2 class="section" id="proximos">7. Próximos módulos</h2>
+  <h2 class="section" id="proximos">8. Próximos passos</h2>
 
   <div class="grid">
     <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
@@ -1021,9 +1203,9 @@ using var producer = new ProducerBuilder&lt;string, TransacaoAprovadaEvent&gt;(c
       <div class="card-title" style="color:#22c55e">✓ Módulo 6 — Serialização</div>
       <p>Concluído — JSON vs Avro vs Protobuf, Schema Registry, BACKWARD compatibility, schema evolution sem quebrar consumers, comparativo de tamanho.</p>
     </div>
-    <div class="card">
-      <div class="card-title">Módulo 7 — Produção</div>
-      <p>Replication factor, ISR, retention policy, idempotent producer, consumer lag. O que a XP Investimentos monitora.</p>
+    <div class="card" style="border: 1px solid #22c55e44; background: #14532d22;">
+      <div class="card-title" style="color:#22c55e">✓ Módulo 7 — Kafka em Produção</div>
+      <p>Concluído — Replication Factor, ISR, Acks, Consumer Lag, Idempotent Producer, Retention Policy, métricas que fintechs monitoram.</p>
     </div>
   </div>
 
@@ -1076,7 +1258,7 @@ var config = new ConsumerConfig
 
 <footer>
   Projeto: <strong>transacao-api-dotnet-react</strong> · .NET 10 + React 18 + Kafka + RabbitMQ + PostgreSQL<br>
-  Guia gerado durante as aulas práticas — Módulos 1 a 6 concluídos
+  Guia gerado durante as aulas práticas — Módulos 1 a 7 concluídos ✓
 </footer>
 
 </body>
