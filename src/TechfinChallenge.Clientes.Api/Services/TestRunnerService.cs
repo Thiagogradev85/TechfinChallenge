@@ -29,7 +29,7 @@ public class TestRunnerService
 
         var args = $"test \"{_testProjectPath}\" --logger \"trx;LogFileName={trxPath}\"";
         if (!string.IsNullOrEmpty(filtro))
-            args += $" --filter \"Name={filtro}\"";
+            args += $" --filter \"FullyQualifiedName~{filtro}\"";
 
         var process = new Process
         {
